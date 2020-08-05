@@ -1,0 +1,15 @@
+name: 'Create/Update Azure policies'
+description: 'An action to create/update Azure policies'
+inputs: 
+  paths:
+    description: 'Path to current repository folder(s) which contains the policies to create/update'
+    required: true
+  ignore-paths:
+    description: 'Folder(s) to ignore'
+    required: false
+  env:
+    description: 'Environment to pick the assignments from. Identifies which assignment.{env}.json to be applied'
+    required: true
+runs:
+  using: 'node12'
+  main: 'lib/run.js'
