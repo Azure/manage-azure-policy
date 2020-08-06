@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import { AzHttpClient } from './azure/azHttpClient';
-import { ASSIGNMENT_TYPE, createOrUpdatePolicyObjects, DEFINITION_TYPE, PolicyRequest } from './azure/policyHelper'
+import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, createOrUpdatePolicyObjects, setResult } from './azure/policyHelper'
+import { printSummary } from './report/reportGenerator';
 
 async function run() {
   try {
@@ -10,16 +11,20 @@ async function run() {
       {
         path: process.env.DEFINITION_PATH || '',
         type: DEFINITION_TYPE,
+        operation: POLICY_OPERATION_UPDATE
       },
       {
         path: process.env.ASSIGNMENT_PATH || '',
         type: ASSIGNMENT_TYPE,
+        operation: POLICY_OPERATION_UPDATE
       }
     ];
 
     const azHttpClient = new AzHttpClient();
     await azHttpClient.initialize();
-    await createOrUpdatePolicyObjects(azHttpClient, policyRequests);
+    const policyResults: PolicyResult[] = await createOrUpdatePolicyObjects(azHttpClient, policyRequests);
+    printSummary(policyResults);
+    setResult(policyResults);
   } catch (error) {
     core.setFailed(error.message);
   }

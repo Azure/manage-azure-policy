@@ -9,7 +9,7 @@ export class AzHttpClient {
   async createOrUpdatePolicyDefinition(definition: any): Promise<any> {
     return this.sendRequest('PUT', definition.id, definition)
       .then((response) => {
-        console.log(`Create/Update definition response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
+      // console.log(`Create/Update definition response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
       if(response.statusCode == StatusCodes.CREATED) {
         return Promise.resolve(response);
       } else {
@@ -24,7 +24,7 @@ export class AzHttpClient {
   async createOrUpdatePolicyAssignment(assignment: any): Promise<any> {
     return this.sendRequest('PUT', assignment.id, assignment)
       .then((response) => {
-        console.log(`Create/Update assignment response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
+      // console.log(`Create/Update assignment response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
       if(response.statusCode == StatusCodes.CREATED) {
         return Promise.resolve(response);
       } else {
@@ -51,7 +51,7 @@ export class AzHttpClient {
       webRequest.body = JSON.stringify(payload);
     }
 
-    console.log('webrequest.body', webRequest.body);
+    // console.log('webrequest.body', webRequest.body);
     return sendRequest(webRequest);
   }
 
