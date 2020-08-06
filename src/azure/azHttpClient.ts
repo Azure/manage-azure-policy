@@ -8,11 +8,12 @@ export class AzHttpClient {
 
   async createOrUpdatePolicyDefinition(definition: any): Promise<any> {
     return this.sendRequest('PUT', definition.id, definition)
-    .then((response) => {
+      .then((response) => {
+        console.log(`Create/Update definition response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
       if(response.statusCode == StatusCodes.CREATED) {
         return Promise.resolve(response);
       } else {
-        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${response.body}`);
+        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
       }
     })
     .catch((error) => {
@@ -22,11 +23,12 @@ export class AzHttpClient {
 
   async createOrUpdatePolicyAssignment(assignment: any): Promise<any> {
     return this.sendRequest('PUT', assignment.id, assignment)
-    .then((response) => {
+      .then((response) => {
+        console.log(`Create/Update assignment response, statuscode: ${response.statusCode}, body: ${JSON.stringify(response.body)}`);
       if(response.statusCode == StatusCodes.CREATED) {
         return Promise.resolve(response);
       } else {
-        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${response.body}`);
+        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
       }
     })
     .catch((error) => {
@@ -49,6 +51,7 @@ export class AzHttpClient {
       webRequest.body = JSON.stringify(payload);
     }
 
+    console.log('webrequest.body', webRequest.body);
     return sendRequest(webRequest);
   }
 

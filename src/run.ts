@@ -18,7 +18,7 @@ async function run() {
     ];
 
     const azHttpClient = new AzHttpClient();
-    azHttpClient.initialize();
+    await azHttpClient.initialize();
     await createOrUpdatePolicyObjects(azHttpClient, policyRequests);
   } catch (error) {
     core.setFailed(error.message);

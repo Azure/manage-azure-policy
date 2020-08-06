@@ -34,10 +34,12 @@ export async function createOrUpdatePolicyObjects(azHttpClient: AzHttpClient, po
           validateDefinition(definition);
           await azHttpClient.createOrUpdatePolicyDefinition(definition);
           policyResult.status = POLICY_RESULT_SUCCEEDED;
+          console.log(`Policy definition created/updated successfully. Path: ${policyRequest.path}`);
         }
         catch(error) {
           policyResult.status = POLICY_RESULT_FAILED;
           policyResult.message = `An error occured while creating/updating policy defition. Path: ${policyRequest.path} . Error: ${error}`;
+          console.log(`An error occured while creating/updating policy defition. Path: ${policyRequest.path} . Error: ${error}`);
         }
 
         policyResults.push(policyResult);
@@ -49,10 +51,12 @@ export async function createOrUpdatePolicyObjects(azHttpClient: AzHttpClient, po
           validateAssignment(assignment);
           await azHttpClient.createOrUpdatePolicyAssignment(assignment);
           policyResult.status = POLICY_RESULT_SUCCEEDED;
+          console.log(`Policy assignment created/updated successfully. Path: ${policyRequest.path}`);
         }
         catch (error) {
           policyResult.status = POLICY_RESULT_FAILED;
           policyResult.message = `An error occured while creating/updating policy assignment. Path: ${policyRequest.path} . Error: ${error}`;
+          console.log(`An error occured while creating/updating policy assignment. Path: ${policyRequest.path} . Error: ${error}`);
         }
 
         policyResults.push(policyResult);
@@ -68,14 +72,30 @@ function getPolicyDefinition(definitionPath: string): any {
 
   let definition = getFileJson(policyPath);
 
-  if (!definition.policyRule && doesFileExist(policyRulesPath)) {
-    const policyRule = getFileJson(policyRulesPath);
-    definition.policyRule = policyRule;
+  if ((!definition.properties || !definition.properties.policyRule) && doesFileExist(policyRulesPath)) {
+    const policyRuleJson = getFileJson(policyRulesPath);
+    if (policyRuleJson && policyRuleJson.policyRule) {
+      if (!definition.properties) {
+        // If properties is missing from the definition object and we obtain policyRule from the
+        // policy rules file, add properties.
+        definition.properties = {};
+      }
+
+      definition.properties.policyRule = policyRuleJson.policyRule;
+    }
   }
 
-  if (!definition.parameters && doesFileExist(policyParametersPath)) {
-    const policyParameters = getFileJson(policyParametersPath);
-    definition.parameters = policyParameters;
+  if ((!definition.properties || !definition.properties.parameters) && doesFileExist(policyParametersPath)) {
+    const policyParametersJson = getFileJson(policyParametersPath);
+    if (policyParametersJson && policyParametersJson.parameters) {
+      if (!definition.properties) {
+        // If properties is missing from the definition object and we obtain parameters from the
+        // policy parameters file, add properties.
+        definition.properties = {};
+      }
+
+      definition.properties.parameters = policyParametersJson.parameters;
+    }
   }
 
   return definition;
