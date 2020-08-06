@@ -22,6 +22,9 @@
     "typescript": "^3.9.7"
   },
   "dependencies": {
-    "@actions/core": "^1.2.4"
+    "@actions/core": "^1.2.4",
+    "@actions/exec": "^1.0.1",
+    "@actions/io": "^1.0.1",
+    "typed-rest-client": "^1.5.0"
   }
 }
