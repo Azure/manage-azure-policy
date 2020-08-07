@@ -3,6 +3,7 @@ import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
 import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils'
+import { printPartitionedText } from '../utils/utilities'
 
 export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
 export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
@@ -13,6 +14,8 @@ const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
 const POLICY_FILE_NAME = "policy.json";
 const POLICY_RULES_FILE_NAME = "policy.rules.json";
 const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
+const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
+const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
 
 export interface PolicyRequest {
   path: string;
@@ -49,56 +52,72 @@ export function setResult(policyResults: PolicyResult[]): void {
 
 export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest2[]> {
   let policyRequests: PolicyRequest2[] = [];
+  let newPolicy: boolean = false;
+  let updateRequired: boolean = false;
+  let azureMetadata: any;
+  let githubHash: string;
+  let azureHash: string;
 
   try {
     let allJsonFiles: string[] = getAllJsonFilesPath(paths);
 
-    console.log("all json files : " + allJsonFiles);
-
     let policies: any[] = getAllPolicies(allJsonFiles);
-
-    console.log(policies);
     
     const azHttpClient = new AzHttpClient();
     await azHttpClient.initialize();
 
     for (let policy of policies) {
-      let githubHash = getObjectHash(policy);
-
-      let azureMetadata: any;
-
-      // TODO : Only update case handled. Need to handle create case
+      githubHash = getObjectHash(policy);
+      newPolicy = false;
+      updateRequired = false;
 
       if (policy.type == DEFINITION_TYPE) {
         let azDefinition = await azHttpClient.getPolicyDefinition(policy);
-        azureMetadata = azDefinition.properties.metadata;
+        if (azDefinition.error && azDefinition.error.code == POLICY_DEFINITION_NOT_FOUND) {
+          // Policy Definition does not exisit we need to create new one.
+          printPartitionedText(`Policy definition with id ${policy.id} does not exist in azure. A new definition will be created.`);
+          newPolicy = true;
+        }
+        else {
+          azureMetadata = azDefinition.properties.metadata;
+        }
       }
       else {
         let azAssignment = await azHttpClient.getPolicyAssignment(policy);
-        azureMetadata = azAssignment.properties.metadata;
-      }
-
-      console.log("azure metaData : " + JSON.stringify(azureMetadata));
-
-      let updateRequired: boolean = false;
-
-      if (azureMetadata.GitHubPolicy) {
-        let azureHash: string = azureMetadata.GitHubPolicy.policy_hash;
-        if (azureHash == githubHash) {
-          console.log("Hash is same no need to update");
+        if (azAssignment.error && azAssignment.error.code == POLICY_ASSIGNMENT_NOT_FOUND) {
+          // Policy Assignment does not exisit we need to create new one.
+          printPartitionedText(`Policy assignment with id ${policy.id} does not exist in azure. A new assignment will be created.`);
+          newPolicy = true;
         }
         else {
-          console.log("Hash is not same. We need to update.");
-          updateRequired = true;
+          azureMetadata = azAssignment.properties.metadata;
         }
       }
-      else {
-        console.log("Github metaData is not present. Will need to update");
-        updateRequired = true;
-      }
 
-      if (updateRequired) {
-        policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_UPDATE));
+      if (newPolicy) {
+        policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_CREATE));
+      }
+      else {
+        console.log("azure metaData : " + JSON.stringify(azureMetadata));
+
+        if (azureMetadata.GitHubPolicy) {
+          azureHash = azureMetadata.GitHubPolicy.policy_hash;
+          if (azureHash == githubHash) {
+            console.log("Hash is same no need to update");
+          }
+          else {
+            console.log("Hash is not same. We need to update.");
+            updateRequired = true;
+          }
+        }
+        else {
+          console.log("Github metaData is not present. Will need to update");
+          updateRequired = true;
+        }
+
+        if (updateRequired) {
+          policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_UPDATE));
+        }
       }
     }    
   }
@@ -244,6 +263,7 @@ function getPolicyObject(path: string): any {
   let jsonObj = getFileJson(path);
 
   // Todo : For DEFINITION_TYPE we need to check for parameter and rules files if required.
+  // TODO : basic validation
 
   if (jsonObj.type && jsonObj.type == ASSIGNMENT_TYPE || jsonObj.type == DEFINITION_TYPE) {
     return jsonObj;

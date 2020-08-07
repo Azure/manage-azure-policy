@@ -14,8 +14,8 @@ async function run() {
     const paths = pathsInput.split('\n');
 
     let policyRequests1 = await getAllPolicyRequests(paths);
-    console.log("Policy Requests1 : ");
-    console.log(policyRequests1);
+
+    console.log("Final Policies : \n" + JSON.stringify(policyRequests1));
 
     // Get this array after parsing the paths and ignore-paths inputs.
     // Populating using env vars for testing. 

@@ -39,7 +39,7 @@ export class AzHttpClient {
   async getPolicyDefinition(definition: any): Promise<any> {
     return this.sendRequest('GET', definition.id, undefined)
       .then((response) => {
-      if(response.statusCode == StatusCodes.OK) {
+      if(response.statusCode == StatusCodes.OK || response.statusCode == StatusCodes.NOT_FOUND) {
         return Promise.resolve(response.body);
       } else {
         return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
@@ -53,7 +53,7 @@ export class AzHttpClient {
   async getPolicyAssignment(assignment: any): Promise<any> {
     return this.sendRequest('GET', assignment.id, undefined)
       .then((response) => {
-      if(response.statusCode == StatusCodes.OK) {
+      if(response.statusCode == StatusCodes.OK || response.statusCode == StatusCodes.NOT_FOUND) {
         return Promise.resolve(response.body);
       } else {
         return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
