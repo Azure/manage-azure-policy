@@ -1,10 +1,11 @@
 import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
-import { doesFileExist, getFileJson } from '../utils/fileHelper';
+import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
+import { getObjectHash } from '../utils/hashUtils'
 
-export const DEFINITION_TYPE = "definition";
-export const ASSIGNMENT_TYPE = "assignment";
+export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
+export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
 export const POLICY_OPERATION_CREATE = "CREATE";
 export const POLICY_OPERATION_UPDATE = "UPDATE";
 const POLICY_RESULT_FAILED = "FAILED";
@@ -19,6 +20,11 @@ export interface PolicyRequest {
   operation: string;
 }
 
+export interface PolicyRequest2 {
+  policy: any;
+  operation: string;
+}
+
 export interface PolicyResult {
   path: string;
   type: string;
@@ -28,6 +34,10 @@ export interface PolicyResult {
   message: string;
 }
 
+export interface policyMetadata {
+  policy_hash: string;
+}
+
 export function setResult(policyResults: PolicyResult[]): void {
   const failedCount: number = policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length;
   if (failedCount > 0) {
@@ -35,6 +45,68 @@ export function setResult(policyResults: PolicyResult[]): void {
   } else {
     core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
   }
+}
+
+export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest2[]> {
+  let policyRequests: PolicyRequest2[] = [];
+
+  try {
+    let allJsonFiles: string[] = getAllJsonFilesPath(paths);
+
+    console.log("all json files : " + allJsonFiles);
+
+    let policies: any[] = getAllPolicies(allJsonFiles);
+
+    console.log(policies);
+    
+    const azHttpClient = new AzHttpClient();
+    await azHttpClient.initialize();
+
+    for (let policy of policies) {
+      let githubHash = getObjectHash(policy);
+
+      let azureMetadata: any;
+
+      // TODO : Only update case handled. Need to handle create case
+
+      if (policy.type == DEFINITION_TYPE) {
+        let azDefinition = await azHttpClient.getPolicyDefinition(policy);
+        azureMetadata = azDefinition.properties.metadata;
+      }
+      else {
+        let azAssignment = await azHttpClient.getPolicyAssignment(policy);
+        azureMetadata = azAssignment.properties.metadata;
+      }
+
+      console.log("azure metaData : " + JSON.stringify(azureMetadata));
+
+      let updateRequired: boolean = false;
+
+      if (azureMetadata.GitHubPolicy) {
+        let azureHash: string = azureMetadata.GitHubPolicy.policy_hash;
+        if (azureHash == githubHash) {
+          console.log("Hash is same no need to update");
+        }
+        else {
+          console.log("Hash is not same. We need to update.");
+          updateRequired = true;
+        }
+      }
+      else {
+        console.log("Github metaData is not present. Will need to update");
+        updateRequired = true;
+      }
+
+      if (updateRequired) {
+        policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_UPDATE));
+      }
+    }    
+  }
+  catch(error) {
+    return Promise.reject(error);
+  }
+
+  return Promise.resolve(policyRequests);
 }
 
 export async function createOrUpdatePolicyObjects(azHttpClient: AzHttpClient, policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
@@ -152,4 +224,53 @@ function validateAssignment(assignment: any): void {
   if (!assignment.name) {
     throw Error('Property name is missing from the policy assignment. Please add name to the assignment file.');
   }
+}
+
+// Returns all policy definition, assgnments present in the given paths.
+function getAllPolicies(jsonPaths: string[]): any[] {
+  let policies: any[] = [];
+
+  jsonPaths.forEach((path) => {
+    let policy = getPolicyObject(path);
+    if (policy) {
+      policies.push(policy);
+    }
+  });
+
+  return policies;
+}
+
+function getPolicyObject(path: string): any {
+  let jsonObj = getFileJson(path);
+
+  // Todo : For DEFINITION_TYPE we need to check for parameter and rules files if required.
+
+  if (jsonObj.type && jsonObj.type == ASSIGNMENT_TYPE || jsonObj.type == DEFINITION_TYPE) {
+    return jsonObj;
+  }
+
+  return undefined;
+}
+
+function getWorkflowMetadata(policyHash: string): policyMetadata {
+  let metadata: policyMetadata = {
+    policy_hash: policyHash
+  }
+
+  return metadata;
+}
+
+function getPolicyRequest(policy: any, hash: string, operation: string): PolicyRequest2 {
+  let metadata = getWorkflowMetadata(hash);
+  if (!policy.properties.metadata) {
+    policy.properties.metadata = {};
+  }
+
+  policy.properties.metadata.GitHubPolicy = metadata;
+
+  return {
+    policy: policy,
+    operation: operation
+  } as PolicyRequest2
+
 }

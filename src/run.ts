@@ -1,10 +1,22 @@
 import * as core from '@actions/core';
 import { AzHttpClient } from './azure/azHttpClient';
-import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, createOrUpdatePolicyObjects, setResult } from './azure/policyHelper'
+import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, createOrUpdatePolicyObjects, setResult, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
 
 async function run() {
   try {
+    const pathsInput = core.getInput("paths");
+    if (!pathsInput) {
+      core.setFailed("No path supplied.");
+      return;
+    }
+
+    const paths = pathsInput.split('\n');
+
+    let policyRequests1 = await getAllPolicyRequests(paths);
+    console.log("Policy Requests1 : ");
+    console.log(policyRequests1);
+
     // Get this array after parsing the paths and ignore-paths inputs.
     // Populating using env vars for testing. 
     const policyRequests: PolicyRequest[] = [
