@@ -24,6 +24,7 @@ export interface PolicyRequest {
 }
 
 export interface PolicyRequest2 {
+  path: string;
   policy: any;
   operation: string;
 }
@@ -57,16 +58,18 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
   let azureMetadata: any;
   let githubHash: string;
   let azureHash: string;
+  let policy: any;
 
   try {
     let allJsonFiles: string[] = getAllJsonFilesPath(paths);
 
-    let policies: any[] = getAllPolicies(allJsonFiles);
+    let policies: PolicyRequest2[] = getAllPolicies(allJsonFiles);
     
     const azHttpClient = new AzHttpClient();
     await azHttpClient.initialize();
 
-    for (let policy of policies) {
+    for (let policyDetails of policies) {
+      policy = policyDetails.policy;
       githubHash = getObjectHash(policy);
       newPolicy = false;
       updateRequired = false;
@@ -74,7 +77,6 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
       if (policy.type == DEFINITION_TYPE) {
         let azDefinition = await azHttpClient.getPolicyDefinition(policy);
         if (azDefinition.error && azDefinition.error.code == POLICY_DEFINITION_NOT_FOUND) {
-          // Policy Definition does not exisit we need to create new one.
           printPartitionedText(`Policy definition with id ${policy.id} does not exist in azure. A new definition will be created.`);
           newPolicy = true;
         }
@@ -85,7 +87,6 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
       else {
         let azAssignment = await azHttpClient.getPolicyAssignment(policy);
         if (azAssignment.error && azAssignment.error.code == POLICY_ASSIGNMENT_NOT_FOUND) {
-          // Policy Assignment does not exisit we need to create new one.
           printPartitionedText(`Policy assignment with id ${policy.id} does not exist in azure. A new assignment will be created.`);
           newPolicy = true;
         }
@@ -95,15 +96,15 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
       }
 
       if (newPolicy) {
-        policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_CREATE));
+        policyDetails.policy = appendPolicyMetadata(policy, githubHash);
+        policyDetails.operation = POLICY_OPERATION_CREATE;
+        policyRequests.push(policyDetails);
       }
       else {
-        console.log("azure metaData : " + JSON.stringify(azureMetadata));
-
         if (azureMetadata.GitHubPolicy) {
           azureHash = azureMetadata.GitHubPolicy.policy_hash;
           if (azureHash == githubHash) {
-            console.log("Hash is same no need to update");
+            printPartitionedText(`Hash is same for policy id : ${policy.id}`);
           }
           else {
             console.log("Hash is not same. We need to update.");
@@ -116,7 +117,9 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
         }
 
         if (updateRequired) {
-          policyRequests.push(getPolicyRequest(policy, githubHash, POLICY_OPERATION_UPDATE));
+          policyDetails.policy = appendPolicyMetadata(policy, githubHash);
+          policyDetails.operation = POLICY_OPERATION_UPDATE;
+          policyRequests.push(policyDetails);
         }
       }
     }    
@@ -246,13 +249,16 @@ function validateAssignment(assignment: any): void {
 }
 
 // Returns all policy definition, assgnments present in the given paths.
-function getAllPolicies(jsonPaths: string[]): any[] {
-  let policies: any[] = [];
+function getAllPolicies(jsonPaths: string[]): PolicyRequest2[] {
+  let policies: PolicyRequest2[] = [];
 
   jsonPaths.forEach((path) => {
     let policy = getPolicyObject(path);
     if (policy) {
-      policies.push(policy);
+      policies.push({
+        path: path,
+        policy: policy
+      } as PolicyRequest2);
     }
   });
 
@@ -280,7 +286,7 @@ function getWorkflowMetadata(policyHash: string): policyMetadata {
   return metadata;
 }
 
-function getPolicyRequest(policy: any, hash: string, operation: string): PolicyRequest2 {
+function appendPolicyMetadata(policy: any, hash: string): any {
   let metadata = getWorkflowMetadata(hash);
   if (!policy.properties.metadata) {
     policy.properties.metadata = {};
@@ -288,9 +294,5 @@ function getPolicyRequest(policy: any, hash: string, operation: string): PolicyR
 
   policy.properties.metadata.GitHubPolicy = metadata;
 
-  return {
-    policy: policy,
-    operation: operation
-  } as PolicyRequest2
-
+  return policy;
 }

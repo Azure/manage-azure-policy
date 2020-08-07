@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import { AzHttpClient } from './azure/azHttpClient';
 import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, createOrUpdatePolicyObjects, setResult, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
+import { printPartitionedText } from './utils/utilities'
 
 async function run() {
   try {
@@ -15,7 +16,10 @@ async function run() {
 
     let policyRequests1 = await getAllPolicyRequests(paths);
 
-    console.log("Final Policies : \n" + JSON.stringify(policyRequests1));
+    // For test purpose
+    policyRequests1.forEach((policyReq) => {
+      printPartitionedText(`Path : ${policyReq.path}\nOperation : ${policyReq.operation}\nPolicy : ${JSON.stringify(policyReq.policy, null, 4)}`);
+    });
 
     // Get this array after parsing the paths and ignore-paths inputs.
     // Populating using env vars for testing. 
