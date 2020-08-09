@@ -1,8 +1,17 @@
 import * as core from '@actions/core';
 import { AzHttpClient } from './azure/azHttpClient';
-import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, createOrUpdatePolicyObjects, setResult, getAllPolicyRequests } from './azure/policyHelper'
+import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
 import { printPartitionedText } from './utils/utilities'
+
+function setResult(policyResults: PolicyResult[]): void {
+  const failedCount: number = policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length;
+  if (failedCount > 0) {
+    core.setFailed(`Found '${failedCount}' failure(s) while deploying policies.`);
+  } else {
+    core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
+  }
+}
 
 async function run() {
   try {
@@ -38,7 +47,7 @@ async function run() {
 
     const azHttpClient = new AzHttpClient();
     await azHttpClient.initialize();
-    const policyResults: PolicyResult[] = await createOrUpdatePolicyObjects(azHttpClient, policyRequests);
+    const policyResults: PolicyResult[] = await createUpdatePolicies(azHttpClient, policyRequests);
     printSummary(policyResults);
     setResult(policyResults);
   } catch (error) {
