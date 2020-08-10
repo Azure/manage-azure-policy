@@ -28,34 +28,6 @@ export class AzHttpClient {
     });
   }
 
-  async getPolicyDefinition(definition: any): Promise<any> {
-    return this.sendRequest('GET', definition.id, undefined)
-      .then((response) => {
-      if(response.statusCode == StatusCodes.OK || response.statusCode == StatusCodes.NOT_FOUND) {
-        return Promise.resolve(response.body);
-      } else {
-        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
-      }
-    })
-    .catch((error) => {
-      return Promise.reject(error);
-    });
-  }
-
-  async getPolicyAssignment(assignment: any): Promise<any> {
-    return this.sendRequest('GET', assignment.id, undefined)
-      .then((response) => {
-      if(response.statusCode == StatusCodes.OK || response.statusCode == StatusCodes.NOT_FOUND) {
-        return Promise.resolve(response.body);
-      } else {
-        return Promise.reject(`Error response from server. StatusCode: ${response.statusCode}. Response: ${JSON.stringify(response.body)}`);
-      }
-    })
-    .catch((error) => {
-      return Promise.reject(error);
-    });
-  }
-
   private async sendRequest(method: string, resourceId: string, payload: any): Promise<WebResponse> {
     const url = `${this.managementUrl}${resourceId}?api-version=${this.apiVersion}`;
 
