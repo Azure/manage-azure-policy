@@ -38,7 +38,10 @@ export interface PolicyResult {
   message: string;
 }
 
-export async function createUpdatePolicies(azHttpClient: AzHttpClient, policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
+export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
+  const azHttpClient = new AzHttpClient();
+  await azHttpClient.initialize();
+  
   let policyResults: PolicyResult[] = [];
   for (const policyRequest of policyRequests) {
     switch (policyRequest.type) {

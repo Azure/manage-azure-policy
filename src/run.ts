@@ -1,5 +1,4 @@
 import * as core from '@actions/core';
-import { AzHttpClient } from './azure/azHttpClient';
 import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
 import { printPartitionedText } from './utils/utilities'
@@ -45,9 +44,7 @@ async function run() {
       }
     ];
 
-    const azHttpClient = new AzHttpClient();
-    await azHttpClient.initialize();
-    const policyResults: PolicyResult[] = await createUpdatePolicies(azHttpClient, policyRequests);
+    const policyResults: PolicyResult[] = await createUpdatePolicies(policyRequests);
     printSummary(policyResults);
     setResult(policyResults);
   } catch (error) {
