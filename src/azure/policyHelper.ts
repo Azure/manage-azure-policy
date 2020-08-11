@@ -38,6 +38,92 @@ export interface PolicyResult {
   message: string;
 }
 
+export interface policyMetadata {
+  policy_hash: string;
+}
+
+export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest[]> {
+  let policyRequests: PolicyRequest[] = [];
+  let newPolicy: boolean = false;
+  let updateRequired: boolean = false;
+  let azureMetadata: any;
+  let githubHash: string;
+  let azureHash: string;
+  let policy: any;
+  let azPolicy: any;
+
+  try {
+    let allJsonFiles: string[] = getAllJsonFilesPath(paths);
+
+    // Get all policy definition, assignment objects
+    let policies: PolicyRequest[] = getAllPolicies(allJsonFiles);
+    
+    const azHttpClient = new AzHttpClient();
+    await azHttpClient.initialize();
+
+    for (let policyDetails of policies) {
+      policy = policyDetails.policy;
+      githubHash = getObjectHash(policy);
+      newPolicy = false;
+      updateRequired = false;
+
+      if (policy.type == DEFINITION_TYPE) {
+        azPolicy = await azHttpClient.getPolicyDefinition(policy);
+      }
+      else {
+        azPolicy = await azHttpClient.getPolicyAssignment(policy);
+      }
+
+      if (azPolicy.error) {
+        // There was some error while getting the policy. Check if policy does not exist and needs to be created.
+        if ((azPolicy.error.code == POLICY_DEFINITION_NOT_FOUND && policy.type == DEFINITION_TYPE)
+        || (azPolicy.error.code == POLICY_ASSIGNMENT_NOT_FOUND && policy.type == ASSIGNMENT_TYPE)) {
+            printPartitionedText(`Policy with id : ${policy.id}, path : ${policyDetails.path} does not exist in azure. A new policy will be created.`);
+            newPolicy = true;
+        }
+        else {
+          // TODO : DO we need to throw here?
+          printPartitionedText(`Failed to get policy with id ${policy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azPolicy.error)}`);
+          continue;
+        }
+      }
+      else {
+        // Policy exists in azure. Get the metadata for delta comparison.
+        azureMetadata = azPolicy.properties.metadata;
+      }
+
+      if (!newPolicy) {
+        if (azureMetadata[POLICY_METADATA_GITHUB_FILED]) {
+          azureHash = azureMetadata[POLICY_METADATA_GITHUB_FILED][POLICY_METADATA_HASH_FIELD];
+          if (azureHash == githubHash) {
+            printPartitionedText(`Hash is same for policy id : ${policy.id}`);
+            continue;
+          }
+          else {
+            console.log("Hash is not same. We need to update.");
+            updateRequired = true;
+          }
+        }
+        else {
+          printPartitionedText("Github metaData is not present. Will need to update");
+          updateRequired = true;
+        }
+      }
+      
+      if (updateRequired || newPolicy) {
+        policyDetails.policy = appendPolicyMetadata(policy, githubHash);
+        policyDetails.operation = newPolicy ? POLICY_OPERATION_CREATE : POLICY_OPERATION_UPDATE;
+        policyRequests.push(policyDetails);
+      }
+    }    
+  }
+  catch(error) {
+    return Promise.reject(error);
+  }
+
+  return Promise.resolve(policyRequests);
+}
+
 export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
   const azHttpClient = new AzHttpClient();
   await azHttpClient.initialize();
