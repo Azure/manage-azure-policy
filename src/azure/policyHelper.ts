@@ -3,7 +3,7 @@ import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
 import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils'
-import { printPartitionedText } from '../utils/utilities'
+import { getWorkflowRunUrl, printPartitionedText } from '../utils/utilities'
 
 export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
 export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
@@ -38,8 +38,11 @@ export interface PolicyResult {
   message: string;
 }
 
-export interface policyMetadata {
+export interface PolicyMetadata {
+  commit_sha: string;
   policy_hash: string;
+  repo: string;
+  run_url: string;
 }
 
 export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest[]> {
@@ -298,9 +301,12 @@ function getPolicyObject(path: string): any {
   return undefined;
 }
 
-function getWorkflowMetadata(policyHash: string): policyMetadata {
-  let metadata: policyMetadata = {
-    policy_hash: policyHash
+function getWorkflowMetadata(policyHash: string): PolicyMetadata {
+  let metadata: PolicyMetadata = {
+    policy_hash: policyHash,
+    repo: process.env.GITHUB_REPOSITORY,
+    commit_sha: process.env.GITHUB_SHA,
+    run_url: getWorkflowRunUrl()
   }
 
   return metadata;
