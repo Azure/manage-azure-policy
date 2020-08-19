@@ -1,15 +1,13 @@
 import * as core from "@actions/core";
 
-export function printPartitionedText(text) {
-  const textPartition: string =
-    "----------------------------------------------------------------------------------------------------";
-  console.log(`${textPartition}\n${text}\n${textPartition}`);
+const TEXT_PARTITION: string = "----------------------------------------------------------------------------------------------------";
+
+export function prettyLog(text: string) {
+  console.log(`${TEXT_PARTITION}\n${text}\n${TEXT_PARTITION}`);
 }
 
-export function printPartitionedDebugLog(text) {
-  const textPartition: string =
-    "----------------------------------------------------------------------------------------------------";
-  core.debug(`${textPartition}\n${text}\n${textPartition}`);
+export function prettyDebugLog(text: string) {
+  core.debug(`${TEXT_PARTITION}\n${text}\n${TEXT_PARTITION}`);
 }
 
 export function getWorkflowRunUrl(): string {

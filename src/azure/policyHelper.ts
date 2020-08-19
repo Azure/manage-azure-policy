@@ -1,7 +1,9 @@
 import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
-import { doesFileExist, getFileJson } from '../utils/fileHelper';
+import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
+import { getObjectHash } from '../utils/hashUtils'
+import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities'
 
 export const DEFINITION_TYPE = "definition";
 export const ASSIGNMENT_TYPE = "assignment";
@@ -13,6 +15,10 @@ const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
 const POLICY_FILE_NAME = "policy.json";
 const POLICY_RULES_FILE_NAME = "policy.rules.json";
 const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
+const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
+const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
+const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
+const POLICY_METADATA_HASH_KEY = "policyHash";
 
 export interface PolicyRequest {
   path: string;
@@ -35,38 +41,37 @@ export interface PolicyResult {
 }
 
 export interface PolicyMetadata {
-  commit_sha: string;
-  policy_hash: string;
+  commitSha: string;
+  policyHash: string;
   repo: string;
-  run_url: string;
+  runUrl: string;
 }
 
 export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest[]> {
   let policyRequests: PolicyRequest[] = [];
   let currentHash: string;
-  let eventType: string;
+  let operationType: string;
   let gitPolicy: any;
   let azurePolicy: any;
 
   try {
     // Get all policy definition, assignment objects
-    let allPolicyDetails: PolicyDetails[] = getAllPolicyDetails(paths);
+    const allPolicyDetails: PolicyDetails[] = getAllPolicyDetails(paths);
 
-    for (let policyDetails of allPolicyDetails) {
+    for (const policyDetails of allPolicyDetails) {
       gitPolicy = policyDetails.policy;
       currentHash = getObjectHash(gitPolicy);
       azurePolicy = await getAzurePolicy(gitPolicy);
 
       if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND) {
         // There was some error while fetching the policy.
-        printPartitionedText(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
-        continue;
+        prettyLog(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
       }
-
-      eventType = getPolicyEventType(policyDetails, azurePolicy, currentHash);
-
-      if (eventType == POLICY_OPERATION_CREATE || eventType == POLICY_OPERATION_UPDATE) {
-        policyRequests.push(getPolicyRequest(policyDetails, currentHash, eventType));
+      else {
+        operationType = getPolicyOperationType(policyDetails, azurePolicy, currentHash);
+        if (operationType == POLICY_OPERATION_CREATE || operationType == POLICY_OPERATION_UPDATE) {
+          policyRequests.push(getPolicyRequest(policyDetails, currentHash, operationType));
+        }
       }
     }    
   }
@@ -224,11 +229,12 @@ function validateAssignment(assignment: any): void {
 // Returns all policy definition, assgnments present in the given paths.
 function getAllPolicyDetails(paths: string[]): PolicyDetails[] {
   let policies: PolicyDetails[] = [];
+  let policy: any;
 
-  let jsonPaths: string[] = getAllJsonFilesPath(paths);
+  const jsonPaths: string[] = getAllJsonFilesPath(paths);
 
   jsonPaths.forEach((path) => {
-    let policy = getPolicyObject(path);
+    policy = getPolicyObject(path);
     if (policy) {
       policies.push({
         path: path,
@@ -255,27 +261,32 @@ function getPolicyObject(path: string): any {
 
 function getWorkflowMetadata(policyHash: string): PolicyMetadata {
   let metadata: PolicyMetadata = {
-    policy_hash: policyHash,
+    policyHash: policyHash,
     repo: process.env.GITHUB_REPOSITORY,
-    commit_sha: process.env.GITHUB_SHA,
-    run_url: getWorkflowRunUrl()
+    commitSha: process.env.GITHUB_SHA,
+    runUrl: getWorkflowRunUrl()
   }
 
   return metadata;
 }
 
-function getPolicyRequest(policyReq: PolicyDetails, hash: string, eventType: string): PolicyRequest {
+function getPolicyRequest(policyDetails: PolicyDetails, hash: string, operation: string): PolicyRequest {
   let metadata = getWorkflowMetadata(hash);
-  if (!policyReq.policy.properties.metadata) {
-    policyReq.policy.properties.metadata = {};
+
+  if (!policyDetails.policy.properties) {
+    policyDetails.policy.properties = {};
   }
 
-  policyReq.policy.properties.metadata[POLICY_METADATA_GITHUB_FILED] = metadata;
+  if (!policyDetails.policy.properties.metadata) {
+    policyDetails.policy.properties.metadata = {};
+  }
+
+  policyDetails.policy.properties.metadata[POLICY_METADATA_GITHUB_KEY] = metadata;
 
   let policyRequest: PolicyRequest = {
-    policy: policyReq.policy,
-    path: policyReq.path,
-    operation: eventType
+    policy: policyDetails.policy,
+    path: policyDetails.path,
+    operation: operation
   }
   return policyRequest;
 }
@@ -293,27 +304,31 @@ async function getAzurePolicy(policy: any): Promise<any> {
   }
 }
 
-function getPolicyEventType(gitPolicyDetails: PolicyDetails, azurePolicy: any, currentHash: string): string {
+function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: any, currentHash: string): string {
   if (azurePolicy.error) {
-    printPartitionedText(`Policy with id : ${gitPolicyDetails.policy.id}, path : ${gitPolicyDetails.path} does not exist in azure. A new policy will be created.`);
+    prettyDebugLog(`Policy with id : ${gitPolicyDetails.policy.id}, path : ${gitPolicyDetails.path} does not exist in azure. A new policy will be created.`);
     return POLICY_OPERATION_CREATE;
+  }
+
+  if (!azurePolicy.properties) {
+    return POLICY_OPERATION_UPDATE;
   }
 
   let azureMetadata = azurePolicy.properties.metadata;
 
-  if (azureMetadata[POLICY_METADATA_GITHUB_FILED]) {
-    let azureHash = azureMetadata[POLICY_METADATA_GITHUB_FILED][POLICY_METADATA_HASH_FIELD];
+  if (azureMetadata[POLICY_METADATA_GITHUB_KEY]) {
+    let azureHash = azureMetadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY];
     if (azureHash == currentHash) {
-      printPartitionedText(`Hash is same for policy id : ${gitPolicyDetails.policy.id}`);
+      prettyDebugLog(`Hash is same for policy id : ${gitPolicyDetails.policy.id}`);
       return POLICY_OPERATION_NONE;
     }
     else {
-      console.log("Hash is not same. We need to update.");
+      prettyDebugLog(`Hash is not same for policy id : ${gitPolicyDetails.policy.id}`);
       return POLICY_OPERATION_UPDATE;
     }
   }
   else {
-    printPartitionedText("Github metaData is not present. Will need to update");
+    prettyDebugLog(`GitHub metaData is not present for policy id : ${gitPolicyDetails.policy.id}`);
     return POLICY_OPERATION_UPDATE;
   }
 }
