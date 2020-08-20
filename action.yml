@@ -13,6 +13,12 @@ inputs:
   enforcement-mode:
     description: '<TBD>'
     required: false
+  env:
+    description: 'Environment to pick the assignments from. Identifies which assignment.{env}.json to be applied'
+    required: true
+  mode:
+    required: false
+    description: 'Incremental: push changes for only the files that have been updated in the commit. Complete: Push all in paths'
 runs:
   using: 'node12'
   main: 'lib/run.js'

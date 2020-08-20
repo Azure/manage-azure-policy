@@ -20,6 +20,8 @@ const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
 const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
 const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
 const POLICY_METADATA_HASH_KEY = "policyHash";
+const MODE_COMPLETE = "complete"
+const MODE_INCREMENTAL = "incremental"
 
 export interface PolicyRequest {
   path: string;
@@ -338,10 +340,10 @@ function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: an
    *  Incremental - Push changes for only the files that have been updated in the commit
    *  Complete    - Ignore updates and push ALL files in the path
    */
-  const mode = core.getInput("mode") ? core.getInput("mode") : "Complete";
+  const mode = core.getInput("mode") ? core.getInput("mode").toLowerCase() : MODE_COMPLETE.toLowerCase();
   let azureHash = getHashFromMetadata(azurePolicy);
 
-  if (mode === "Complete" || !azureHash) {
+  if (MODE_COMPLETE.toLowerCase() === mode || !azureHash) {
     /**
      * Scenario 1: If user chooses to override logic of hash comparison he can do it via 'mode' == Complete, ALL files in
      *  user defined path will be updated to Azure Policy Service irrespective of Hash match.
@@ -354,8 +356,8 @@ function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: an
   }
 
   //If user has chosen to push only updated files i.e 'mode' == Incremental AND a valid hash is available in policy metadata compare them.
-  prettyDebugLog(`Comparing Hash for policy id : ${gitPolicyDetails.policy.id} : ${azureHash == currentHash}`);
-  return (azureHash == currentHash) ? POLICY_OPERATION_NONE : POLICY_OPERATION_UPDATE;
+  prettyDebugLog(`Comparing Hash for policy id : ${gitPolicyDetails.policy.id} : ${azureHash === currentHash}`);
+  return (azureHash === currentHash) ? POLICY_OPERATION_NONE : POLICY_OPERATION_UPDATE;
 
 }
 
