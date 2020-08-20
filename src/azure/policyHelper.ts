@@ -87,16 +87,18 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   await azHttpClient.initialize();
   
   let policyResults: PolicyResult[] = [];
-  for (const policyRequest of policyRequests) {
-    switch (policyRequest.type) {
-      case DEFINITION_TYPE:
-        policyResults.push(await upsertPolicyDefinition(azHttpClient, policyRequest));
-        break;
 
-      case ASSIGNMENT_TYPE:
-        policyResults.push(await upsertPolicyAssignment(azHttpClient, policyRequest));
-        break;
-    }
+  // Dividing policy requests into definitions and assignments.
+  const definitionRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == DEFINITION_TYPE);
+  const assignmentRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == ASSIGNMENT_TYPE);
+
+  // Processing definitions first to maintain logical ordering
+  for (const definitionRequest of definitionRequests) {
+    policyResults.push(await upsertPolicyDefinition(azHttpClient, definitionRequest));
+  }
+
+  for (const assignmentRequest of assignmentRequests) {
+    policyResults.push(await upsertPolicyAssignment(azHttpClient, assignmentRequest));
   }
 
   return Promise.resolve(policyResults);
