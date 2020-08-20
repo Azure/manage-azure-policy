@@ -49,44 +49,45 @@ export interface PolicyMetadata {
 }
 
 export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
+
+  const paths = getInputPaths();
+
   let policyRequests: PolicyRequest[] = [];
-  let currentHash: string;
-  let operationType: string;
-  let gitPolicy: any;
-  let azurePolicy: any;
 
   try {
     // Get all policy definition, assignment objects
     const allPolicyDetails: PolicyDetails[] = getAllPolicyDetails();
 
     for (const policyDetails of allPolicyDetails) {
-      gitPolicy = policyDetails.policy;
-      currentHash = getObjectHash(gitPolicy);
-      azurePolicy = await getAzurePolicy(gitPolicy);
+      const gitPolicy = policyDetails.policy;
+      const currentHash = getObjectHash(gitPolicy);
+      const azurePolicy = await getAzurePolicy(gitPolicy);
 
       if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND) {
         // There was some error while fetching the policy.
         prettyLog(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
       }
       else {
-        operationType = getPolicyOperationType(policyDetails, azurePolicy, currentHash);
+        const operationType = getPolicyOperationType(policyDetails, azurePolicy, currentHash);
         if (operationType == POLICY_OPERATION_CREATE || operationType == POLICY_OPERATION_UPDATE) {
           policyRequests.push(getPolicyRequest(policyDetails, currentHash, operationType));
         }
       }
-    }    
+    }
   }
-  catch(error) {
+  catch (error) {
     return Promise.reject(error);
   }
 
   return Promise.resolve(policyRequests);
 }
 
+
+
 export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
   const azHttpClient = new AzHttpClient();
   await azHttpClient.initialize();
-  
+
   let policyResults: PolicyResult[] = [];
 
   // Dividing policy requests into definitions and assignments.
@@ -301,31 +302,79 @@ async function getAzurePolicy(policy: any): Promise<any> {
   }
 }
 
+
+/**
+ * Helper Method's from here - START
+ */
+
+/**
+ * Fetch file paths from action input
+ */
+function getInputPaths(): string[] {
+  const pathsInput = core.getInput("paths");
+  if (!pathsInput) {
+    core.setFailed("No path supplied.");
+    throw Error("No path supplied.");
+  }
+  return pathsInput.split('\n');
+}
+
+/**
+ * This method, for a given policy in GitHub repo path, decides if the policy is a newly Created or will be updated
+ * 
+ * @param gitPolicyDetails : GitHub Policy
+ * @param azurePolicy : Fetched policy from Azure Policy service
+ * @param currentHash : Hash of the current policy in GitHub repo
+ */
 function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: any, currentHash: string): string {
   if (azurePolicy.error) {
+    //The error here will be 'HTTP - Not Found'. This scenario covers Create a New policy.
     prettyDebugLog(`Policy with id : ${gitPolicyDetails.policy.id}, path : ${gitPolicyDetails.path} does not exist in azure. A new policy will be created.`);
     return POLICY_OPERATION_CREATE;
   }
 
-  if (!azurePolicy.properties) {
+  /**
+   * Mode can be: 
+   *  Incremental - Push changes for only the files that have been updated in the commit
+   *  Complete    - Ignore updates and push ALL files in the path
+   */
+  const mode = core.getInput("mode") ? core.getInput("mode") : "Complete";
+  let azureHash = getHashFromMetadata(azurePolicy);
+
+  if (mode === "Complete" || !azureHash) {
+    /**
+     * Scenario 1: If user chooses to override logic of hash comparison he can do it via 'mode' == Complete, ALL files in
+     *  user defined path will be updated to Azure Policy Service irrespective of Hash match.
+     * 
+     * Scenario 2: If policy file Hash is not available on Policy Service (one such scenario will be the very first time this action
+     * is run on an already existing policy) we need to update the file.
+     */
+    prettyDebugLog(`IgnoreHash is : ${mode} OR GitHub properties/metaData is not present for policy id : ${gitPolicyDetails.policy.id}`);
     return POLICY_OPERATION_UPDATE;
   }
 
-  let azureMetadata = azurePolicy.properties.metadata;
+  //If user has chosen to push only updated files i.e 'mode' == Incremental AND a valid hash is available in policy metadata compare them.
+  prettyDebugLog(`Comparing Hash for policy id : ${gitPolicyDetails.policy.id} : ${azureHash == currentHash}`);
+  return (azureHash == currentHash) ? POLICY_OPERATION_NONE : POLICY_OPERATION_UPDATE;
 
-  if (azureMetadata[POLICY_METADATA_GITHUB_KEY]) {
-    let azureHash = azureMetadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY];
-    if (azureHash == currentHash) {
-      prettyDebugLog(`Hash is same for policy id : ${gitPolicyDetails.policy.id}`);
-      return POLICY_OPERATION_NONE;
-    }
-    else {
-      prettyDebugLog(`Hash is not same for policy id : ${gitPolicyDetails.policy.id}`);
-      return POLICY_OPERATION_UPDATE;
-    }
-  }
-  else {
-    prettyDebugLog(`GitHub metaData is not present for policy id : ${gitPolicyDetails.policy.id}`);
-    return POLICY_OPERATION_UPDATE;
-  }
 }
+
+/**
+ * Given a Policy Definition or Policy Assignment this method fetched Hash from metadata
+ * 
+ * @param azurePolicy Azure Policy
+ */
+function getHashFromMetadata(azurePolicy: any): string {
+  const properties = azurePolicy.properties;
+  if (!properties || !properties.metadata) {
+    return undefined;
+  }
+  if (!properties.metadata[POLICY_METADATA_GITHUB_KEY] || !properties.metadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY]) {
+    return undefined;
+  }
+  return properties.metadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY];
+}
+
+/**
+ * Helper Method's - END
+ */
