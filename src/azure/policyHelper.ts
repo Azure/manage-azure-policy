@@ -5,6 +5,7 @@ import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHe
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities';
 import { getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
+import * as Inputs from '../inputProcessing/inputs';
 
 export const DEFINITION_TYPE = "definition";
 export const ASSIGNMENT_TYPE = "assignment";
@@ -20,8 +21,6 @@ const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
 const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
 const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
 const POLICY_METADATA_HASH_KEY = "policyHash";
-const MODE_COMPLETE = "complete"
-const MODE_INCREMENTAL = "incremental"
 
 export interface PolicyRequest {
   path: string;
@@ -80,11 +79,8 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
   catch (error) {
     return Promise.reject(error);
   }
-
   return Promise.resolve(policyRequests);
 }
-
-
 
 export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Promise<PolicyResult[]> {
   const azHttpClient = new AzHttpClient();
@@ -340,10 +336,10 @@ function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: an
    *  Incremental - Push changes for only the files that have been updated in the commit
    *  Complete    - Ignore updates and push ALL files in the path
    */
-  const mode = core.getInput("mode") ? core.getInput("mode").toLowerCase() : MODE_COMPLETE.toLowerCase();
+  const mode = Inputs.mode;
   let azureHash = getHashFromMetadata(azurePolicy);
 
-  if (MODE_COMPLETE.toLowerCase() === mode || !azureHash) {
+  if (Inputs.MODE_COMPLETE === mode || !azureHash) {
     /**
      * Scenario 1: If user chooses to override logic of hash comparison he can do it via 'mode' == Complete, ALL files in
      *  user defined path will be updated to Azure Policy Service irrespective of Hash match.

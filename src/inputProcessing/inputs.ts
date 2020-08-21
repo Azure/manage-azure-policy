@@ -4,13 +4,17 @@ const INPUT_PATHS_KEY = 'paths';
 const INPUT_IGNORE_PATHS_KEY = 'ignore-paths';
 const INPUT_ASSIGNMENTS_KEY = 'assignments';
 const INPUT_ENFORCEMENT_MODE_KEY = 'enforcement-mode';
+const INPUT_MODE = "mode";
 const EXCLUDE_PREFIX = '!';
 const DEFAULT_ASSIGNMENT_PATTERN = 'assign.*.json';
+export const MODE_INCREMENTAL = "incremental";
+export const MODE_COMPLETE = "complete";
 
 export let paths: string[];
 export let ignorePaths: string[] | undefined;
 export let assignments: string[] | undefined;
 export let enforcementMode: string[] | undefined;
+export let mode: string = MODE_INCREMENTAL;
 
 export let includePathPatterns: string[] = [];
 export let excludePathPatterns: string[] = [];
@@ -22,6 +26,7 @@ export function readInputs() {
   const ignorePathsInput = core.getInput(INPUT_IGNORE_PATHS_KEY);
   const assignmentsInput = core.getInput(INPUT_ASSIGNMENTS_KEY);
   const enforcementModeInput = core.getInput(INPUT_ENFORCEMENT_MODE_KEY);
+  mode = core.getInput(INPUT_MODE) ? core.getInput(INPUT_MODE).toLowerCase() : MODE_INCREMENTAL;
 
   paths = getInputArray(pathsInput);
   ignorePaths = getInputArray(ignorePathsInput);

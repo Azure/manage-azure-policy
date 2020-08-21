@@ -35,12 +35,17 @@ async function run() {
 }
 
 function setResult(policyResults: PolicyResult[]): void {
-  const failedCount: number = policyResults ? policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length : 1;
-  if (!policyResults || failedCount > 0) {
-    core.setFailed(`Found '${failedCount}' failure(s) while deploying policies.`);
+  if (!policyResults) {
+    core.setFailed(`Error while deploying policies.`);
   } else {
-    core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
+    const failedCount: number = policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length;
+    if (failedCount > 0) {
+      core.setFailed(`Found '${failedCount}' failure(s) while deploying policies.`);
+    } else {
+      core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
+    }
   }
+
 }
 
 run();
