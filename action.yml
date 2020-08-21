@@ -7,9 +7,12 @@ inputs:
   ignore-paths:
     description: 'Folder(s) to ignore'
     required: false
-  env:
-    description: 'Environment to pick the assignments from. Identifies which assignment.{env}.json to be applied'
-    required: true
+  assignments:
+    description: 'Only the assignments that match the expression(s) will be applied.'
+    required: false
+  enforcement-mode:
+    description: '<TBD>'
+    required: false
 runs:
   using: 'node12'
   main: 'lib/run.js'

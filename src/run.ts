@@ -1,5 +1,6 @@
 import * as core from '@actions/core';
-import { ASSIGNMENT_TYPE, DEFINITION_TYPE, POLICY_OPERATION_UPDATE, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies } from './azure/policyHelper'
+import * as Inputs from './inputProcessing/inputs';
+import { POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
 import { prettyDebugLog } from './utils/utilities'
 
@@ -14,15 +15,8 @@ function setResult(policyResults: PolicyResult[]): void {
 
 async function run() {
   try {
-    const pathsInput = core.getInput("paths");
-    if (!pathsInput) {
-      core.setFailed("No path supplied.");
-      return;
-    }
-
-    const paths = pathsInput.split('\n');
-
-    const policyRequests: PolicyRequest[] = await getAllPolicyRequests(paths);
+    Inputs.readInputs();
+    const policyRequests: PolicyRequest[] = await getAllPolicyRequests();
 
     // For test purpose
     policyRequests.forEach((policyReq) => {

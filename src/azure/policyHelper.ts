@@ -2,8 +2,9 @@ import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
 import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
-import { getObjectHash } from '../utils/hashUtils'
-import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities'
+import { getObjectHash } from '../utils/hashUtils';
+import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities';
+import { getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
 
 export const DEFINITION_TYPE = "definition";
 export const ASSIGNMENT_TYPE = "assignment";
@@ -12,7 +13,7 @@ export const POLICY_OPERATION_UPDATE = "UPDATE";
 export const POLICY_OPERATION_NONE = "NONE";
 export const POLICY_RESULT_FAILED = "FAILED";
 const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
-const POLICY_FILE_NAME = "policy.json";
+export const POLICY_FILE_NAME = "policy.json";
 const POLICY_RULES_FILE_NAME = "policy.rules.json";
 const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
 const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
@@ -47,7 +48,7 @@ export interface PolicyMetadata {
   runUrl: string;
 }
 
-export async function getAllPolicyRequests(paths: string[]): Promise<PolicyRequest[]> {
+export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
   let policyRequests: PolicyRequest[] = [];
   let currentHash: string;
   let operationType: string;
@@ -56,7 +57,7 @@ export async function getAllPolicyRequests(paths: string[]): Promise<PolicyReque
 
   try {
     // Get all policy definition, assignment objects
-    const allPolicyDetails: PolicyDetails[] = getAllPolicyDetails(paths);
+    const allPolicyDetails: PolicyDetails[] = getAllPolicyDetails();
 
     for (const policyDetails of allPolicyDetails) {
       gitPolicy = policyDetails.policy;
@@ -228,37 +229,31 @@ function validateAssignment(assignment: any): void {
   }
 }
 
-// Returns all policy definition, assgnments present in the given paths.
-function getAllPolicyDetails(paths: string[]): PolicyDetails[] {
+// Returns all policy definitions and assignments.
+function getAllPolicyDetails(): PolicyDetails[] {
   let policies: PolicyDetails[] = [];
   let policy: any;
 
-  const jsonPaths: string[] = getAllJsonFilesPath(paths);
+  const definitionPaths = getAllPolicyDefinitionPaths();
+  const assignmentPaths = getAllPolicyAssignmentPaths(definitionPaths);
 
-  jsonPaths.forEach((path) => {
-    policy = getPolicyObject(path);
-    if (policy) {
-      policies.push({
-        path: path,
-        policy: policy
-      } as PolicyDetails);
-    }
+  definitionPaths.forEach(definitionPath => {
+    const definition = getPolicyDefinition(definitionPath);
+    policies.push({
+      path: definitionPath,
+      policy: definition
+    } as PolicyDetails);
+  });
+
+  assignmentPaths.forEach(assignmentPath => {
+    const assignment = getPolicyAssignment(assignmentPath);
+    policies.push({
+      path: assignmentPath,
+      policy: assignment
+    } as PolicyDetails);
   });
 
   return policies;
-}
-
-function getPolicyObject(path: string): any {
-  let jsonObj = getFileJson(path);
-
-  // Todo : For DEFINITION_TYPE we need to check for parameter and rules files if required.
-  // TODO : basic validation
-
-  if (jsonObj.type && jsonObj.type == ASSIGNMENT_TYPE || jsonObj.type == DEFINITION_TYPE) {
-    return jsonObj;
-  }
-
-  return undefined;
 }
 
 function getWorkflowMetadata(policyHash: string): PolicyMetadata {
