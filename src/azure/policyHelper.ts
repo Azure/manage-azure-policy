@@ -1,10 +1,10 @@
 import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
-import { doesFileExist, getFileJson, getAllJsonFilesPath } from '../utils/fileHelper';
+import { doesFileExist, getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities';
-import { getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
+import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
 
 export const DEFINITION_TYPE = "definition";
@@ -21,6 +21,9 @@ const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
 const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
 const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
 const POLICY_METADATA_HASH_KEY = "policyHash";
+const ENFORCEMENT_MODE_KEY = "enforcementMode";
+const ENFORCEMENT_MODE_ENFORCE = "Default";
+const ENFORCEMENT_MODE_DO_NOT_ENFORCE = "DoNotEnforce";
 
 export interface PolicyRequest {
   path: string;
@@ -141,7 +144,24 @@ function getPolicyDefinition(definitionPath: string): any {
 }
 
 function getPolicyAssignment(assignmentPath: string): any {
-  return getFileJson(assignmentPath);
+  const assignment = getFileJson(assignmentPath);
+  if (isNonEnforced(assignmentPath)) {
+    if(!assignment.properties) {
+      assignment.properties = {};
+    }
+
+    core.debug(`Assignment path: ${assignmentPath} matches enforcementMode pattern for '${ENFORCEMENT_MODE_DO_NOT_ENFORCE}'. Overriding...`);
+    assignment.properties[ENFORCEMENT_MODE_KEY] = ENFORCEMENT_MODE_DO_NOT_ENFORCE;
+  } else if (isEnforced(assignmentPath)) {
+    if (!assignment.properties) {
+      assignment.properties = {};
+    }
+
+    core.debug(`Assignment path: ${assignmentPath} matches enforcementMode pattern for '${ENFORCEMENT_MODE_ENFORCE}'. Overriding...`);
+    assignment.properties[ENFORCEMENT_MODE_KEY] = ENFORCEMENT_MODE_ENFORCE;
+  }
+
+  return assignment;
 }
 
 async function upsertPolicyDefinition(azHttpClient: AzHttpClient, policyRequest: PolicyRequest): Promise<PolicyResult> {
@@ -231,7 +251,6 @@ function validateAssignment(assignment: any): void {
 // Returns all policy definitions and assignments.
 function getAllPolicyDetails(): PolicyDetails[] {
   let policies: PolicyDetails[] = [];
-  let policy: any;
 
   const definitionPaths = getAllPolicyDefinitionPaths();
   const assignmentPaths = getAllPolicyAssignmentPaths(definitionPaths);

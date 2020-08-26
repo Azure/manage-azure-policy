@@ -20,6 +20,8 @@ export let includePathPatterns: string[] = [];
 export let excludePathPatterns: string[] = [];
 export let includeAssignmentPatterns: string[] = [];
 export let excludeAssignmentPatterns: string[] = [];
+export let enforcePatterns: string[] = [];
+export let doNotEnforcePatterns: string[] = [];
 
 export function readInputs() {
   const pathsInput = core.getInput(INPUT_PATHS_KEY, { required: true });
@@ -33,17 +35,20 @@ export function readInputs() {
   assignments = getInputArray(assignmentsInput);
   enforcementMode = getInputArray(enforcementModeInput);
 
+  validateAssignments();
+  validateEnforcementMode();
+  
   paths.forEach(path => {
     isExcludeInput(path) ? excludePathPatterns.push(path.substring(1)) : includePathPatterns.push(path);
   });
 
-  if(ignorePaths) {
+  if (ignorePaths) {
     ignorePaths.forEach(ignorePath => {
       excludePathPatterns.push(ignorePath);
     })
   }
 
-  if(assignments) {
+  if (assignments) {
     assignments.forEach(assignment => {
       isExcludeInput(assignment) ? excludeAssignmentPatterns.push(assignment.substring(1)) : includeAssignmentPatterns.push(assignment);
     });
@@ -51,6 +56,14 @@ export function readInputs() {
 
   if (includeAssignmentPatterns.length == 0) {
     includeAssignmentPatterns.push(DEFAULT_ASSIGNMENT_PATTERN);
+  }
+
+  if (enforcementMode) {
+    enforcementMode.forEach(enforcementMode => {
+      isExcludeInput(enforcementMode)
+        ? doNotEnforcePatterns.push(enforcementMode.substring(1))
+        : enforcePatterns.push(enforcementMode);
+    });
   }
 }
 
@@ -60,4 +73,22 @@ function getInputArray(input: string): string[] | undefined {
 
 function isExcludeInput(input: string): boolean {
   return input.startsWith(EXCLUDE_PREFIX);
+}
+
+function validateAssignments(): void {
+  if (assignments && hasGlobStarPattern(assignments)) {
+    throw Error(`Input '${INPUT_ASSIGNMENTS_KEY}' should not contain globstar pattern '**'.`);
+  }
+}
+
+function validateEnforcementMode(): void {
+  if (enforcementMode && hasGlobStarPattern(enforcementMode)) {
+    throw Error(`Input '${INPUT_ENFORCEMENT_MODE_KEY}' should not contain globstar pattern '**'.`);
+  }
+}
+
+function hasGlobStarPattern(patterns: string[]): boolean {
+  return patterns.some(pattern => {
+    return pattern.includes('**');
+  });
 }

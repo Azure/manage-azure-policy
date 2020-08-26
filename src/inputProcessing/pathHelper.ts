@@ -1,4 +1,5 @@
 import * as glob from 'glob';
+import minimatch from 'minimatch';
 import * as path from 'path';
 import * as Inputs from './inputs';
 import { POLICY_FILE_NAME } from '../azure/policyHelper';
@@ -26,6 +27,18 @@ export function getAllPolicyAssignmentPaths(allPolicyDefinitionPaths: string[]):
   const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(allPolicyDefinitionPaths, Inputs.includeAssignmentPatterns);
   const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(allPolicyDefinitionPaths, Inputs.excludeAssignmentPatterns);
   return assignmentPathsToInclude.filter(a => !assignmentPathsToExclude.includes(a));
+}
+
+export function isEnforced(assignmentPath: string): boolean {
+  return Inputs.enforcePatterns.some(pattern => {
+    return minimatch(assignmentPath, pattern, { matchBase: true });
+  });
+}
+
+export function isNonEnforced(assignmentPath: string): boolean {
+  return Inputs.doNotEnforcePatterns.some(pattern => {
+    return minimatch(assignmentPath, pattern, { matchBase: true });
+  });
 }
 
 function getPolicyPathsMatchingPatterns(patterns: string[]): string[] {
