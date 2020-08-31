@@ -31,9 +31,10 @@ export interface PolicyRequest {
   operation: string;
 }
 
-interface PolicyDetails {
-  policy: any;
+export interface PolicyDetails {
+  policyInCode: any;
   path: string;
+  policyInService: any;
 }
 
 export interface PolicyResult {
@@ -60,19 +61,19 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
 
   try {
     // Get all policy definition, assignment objects
-    const allPolicyDetails: PolicyDetails[] = getAllPolicyDetails();
+    const allPolicyDetails: PolicyDetails[] = await getAllPolicyDetails();
 
     for (const policyDetails of allPolicyDetails) {
-      const gitPolicy = policyDetails.policy;
+      const gitPolicy = policyDetails.policyInCode;
       const currentHash = getObjectHash(gitPolicy);
-      const azurePolicy = await getAzurePolicy(gitPolicy);
+      const azurePolicy = policyDetails.policyInService;
 
       if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND) {
         // There was some error while fetching the policy.
         prettyLog(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
       }
       else {
-        const operationType = getPolicyOperationType(policyDetails, azurePolicy, currentHash);
+        const operationType = getPolicyOperationType(policyDetails, currentHash);
         if (operationType == POLICY_OPERATION_CREATE || operationType == POLICY_OPERATION_UPDATE) {
           policyRequests.push(getPolicyRequest(policyDetails, currentHash, operationType));
         }
@@ -95,14 +96,11 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   const definitionRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == DEFINITION_TYPE);
   const assignmentRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == ASSIGNMENT_TYPE);
 
-  // Processing definitions first to maintain logical ordering
-  for (const definitionRequest of definitionRequests) {
-    policyResults.push(await upsertPolicyDefinition(azHttpClient, definitionRequest));
-  }
+  const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
+  policyResults.push(...getPolicyResults(definitionRequests, definitionResponses));
 
-  for (const assignmentRequest of assignmentRequests) {
-    policyResults.push(await upsertPolicyAssignment(azHttpClient, assignmentRequest));
-  }
+  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
+  policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses));
 
   return Promise.resolve(policyResults);
 }
@@ -164,64 +162,40 @@ function getPolicyAssignment(assignmentPath: string): any {
   return assignment;
 }
 
-async function upsertPolicyDefinition(azHttpClient: AzHttpClient, policyRequest: PolicyRequest): Promise<PolicyResult> {
-  let policyResult: PolicyResult = {
-    path: policyRequest.path,
-    type: policyRequest.type,
-    operation: policyRequest.operation,
-    name: '',
-    status: '',
-    message: ''
-  };
+function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[]): PolicyResult[] {
+  let policyResults: PolicyResult[] = [];
 
-  const isCreate: boolean = isCreateOperation(policyRequest);
+  policyRequests.forEach((policyRequest, index) => {
+    const isCreate: boolean = isCreateOperation(policyRequest);
+    const azureResponse: any = policyResponses[index];
+    const policyType: string = policyRequest.policy.type == DEFINITION_TYPE ? 'definition' : 'assignment';
+    let status = "";
+    let message = "";
 
-  try {
-    const definition: any = getPolicyDefinition(policyRequest.path);
-    validateDefinition(definition);
-    policyResult.name = definition.name;
-    await azHttpClient.createOrUpdatePolicyDefinition(definition);
-    policyResult.status = POLICY_RESULT_SUCCEEDED;
-    policyResult.message = `Policy definition ${isCreate ? 'created' : 'updated'} successfully`;
-    console.log(`${policyResult.message}. Path: ${policyRequest.path}`);
-  }
-  catch (error) {
-    policyResult.status = POLICY_RESULT_FAILED;
-    policyResult.message = `An error occured while ${isCreate ? 'creating' : 'updating'} policy defition. Error: ${error}`;
-    console.log(`${policyResult.message}. Path: ${policyRequest.path}`);
-  }
+    if (!azureResponse) {
+      status = POLICY_RESULT_FAILED;
+      message = `An error occured while ${isCreate ? 'creating' : 'updating'} policy ${policyType}.`;
+    }
+    else if (azureResponse.error) {
+      status = POLICY_RESULT_FAILED;
+      message = `An error occured while ${isCreate ? 'creating' : 'updating'} policy ${policyType}. Error: ${azureResponse.error.message}`;
+    }
+    else {
+      status = POLICY_RESULT_SUCCEEDED;
+      message = `Policy ${policyType} ${isCreate ? 'created' : 'updated'} successfully`;
+    }
 
-  return policyResult;
-}
+    policyResults.push({
+      path: policyRequest.path,
+      type: policyRequest.policy.type,
+      operation: policyRequest.operation,
+      name: policyRequest.policy.name,
+      status: status,
+      message: message
+    });
+  });
 
-async function upsertPolicyAssignment(azHttpClient: AzHttpClient, policyRequest: PolicyRequest): Promise<PolicyResult> {
-  let policyResult: PolicyResult = {
-    path: policyRequest.path,
-    type: policyRequest.type,
-    operation: policyRequest.operation,
-    name: '',
-    status: '',
-    message: ''
-  };
-
-  const isCreate: boolean = isCreateOperation(policyRequest);
-
-  try {
-    const assignment: any = getPolicyAssignment(policyRequest.path);
-    validateAssignment(assignment);
-    policyResult.name = assignment.name;
-    await azHttpClient.createOrUpdatePolicyAssignment(assignment);
-    policyResult.status = POLICY_RESULT_SUCCEEDED;
-    policyResult.message = `Policy assignment ${isCreate ? 'created' : 'updated'} successfully`;
-    console.log(`${policyResult.message}. Path: ${policyRequest.path}`);
-  }
-  catch (error) {
-    policyResult.status = POLICY_RESULT_FAILED;
-    policyResult.message = `An error occured while ${isCreate ? 'creating' : 'updating'} policy assignment. Error: ${error}`;
-    console.log(`${policyResult.message}. Path: ${policyRequest.path}`);
-  }
-
-  return policyResult;
+  return policyResults;
 }
 
 function isCreateOperation(policyRequest: PolicyRequest): boolean {
@@ -249,29 +223,34 @@ function validateAssignment(assignment: any): void {
 }
 
 // Returns all policy definitions and assignments.
-function getAllPolicyDetails(): PolicyDetails[] {
-  let policies: PolicyDetails[] = [];
+async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
+  let allPolicyDetails: PolicyDetails[] = [];
 
   const definitionPaths = getAllPolicyDefinitionPaths();
   const assignmentPaths = getAllPolicyAssignmentPaths(definitionPaths);
 
   definitionPaths.forEach(definitionPath => {
     const definition = getPolicyDefinition(definitionPath);
-    policies.push({
+    allPolicyDetails.push({
       path: definitionPath,
-      policy: definition
+      policyInCode: definition
     } as PolicyDetails);
   });
 
   assignmentPaths.forEach(assignmentPath => {
     const assignment = getPolicyAssignment(assignmentPath);
-    policies.push({
+    allPolicyDetails.push({
       path: assignmentPath,
-      policy: assignment
+      policyInCode: assignment
     } as PolicyDetails);
   });
 
-  return policies;
+  // Fetch policies from service
+  const azHttpClient = new AzHttpClient();
+  await azHttpClient.initialize();
+  await azHttpClient.populateServicePolicies(allPolicyDetails); 
+
+  return allPolicyDetails;
 }
 
 function getWorkflowMetadata(policyHash: string): PolicyMetadata {
@@ -288,65 +267,41 @@ function getWorkflowMetadata(policyHash: string): PolicyMetadata {
 function getPolicyRequest(policyDetails: PolicyDetails, hash: string, operation: string): PolicyRequest {
   let metadata = getWorkflowMetadata(hash);
 
-  if (!policyDetails.policy.properties) {
-    policyDetails.policy.properties = {};
+  if (!policyDetails.policyInCode.properties) {
+    policyDetails.policyInCode.properties = {};
   }
 
-  if (!policyDetails.policy.properties.metadata) {
-    policyDetails.policy.properties.metadata = {};
+  if (!policyDetails.policyInCode.properties.metadata) {
+    policyDetails.policyInCode.properties.metadata = {};
   }
 
-  policyDetails.policy.properties.metadata[POLICY_METADATA_GITHUB_KEY] = metadata;
+  policyDetails.policyInCode.properties.metadata[POLICY_METADATA_GITHUB_KEY] = metadata;
 
   let policyRequest: PolicyRequest = {
-    policy: policyDetails.policy,
+    policy: policyDetails.policyInCode,
     path: policyDetails.path,
     operation: operation
   }
   return policyRequest;
 }
 
-// This is a temp function. We will need to remove this wile optimising azure calls.
-async function getAzurePolicy(policy: any): Promise<any> {
-  const azHttpClient = new AzHttpClient();
-  await azHttpClient.initialize();
-
-  if (policy.type == DEFINITION_TYPE) {
-    return azHttpClient.getPolicyDefinition(policy);
-  }
-  else {
-    return azHttpClient.getPolicyAssignment(policy);
-  }
-}
-
-
 /**
  * Helper Method's from here - START
  */
 
 /**
- * Fetch file paths from action input
- */
-function getInputPaths(): string[] {
-  const pathsInput = core.getInput("paths");
-  if (!pathsInput) {
-    core.setFailed("No path supplied.");
-    throw Error("No path supplied.");
-  }
-  return pathsInput.split('\n');
-}
-
-/**
  * This method, for a given policy in GitHub repo path, decides if the policy is a newly Created or will be updated
  * 
- * @param gitPolicyDetails : GitHub Policy
- * @param azurePolicy : Fetched policy from Azure Policy service
+ * @param policyDetails : Policy Details
  * @param currentHash : Hash of the current policy in GitHub repo
  */
-function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: any, currentHash: string): string {
-  if (azurePolicy.error) {
+function getPolicyOperationType(policyDetails: PolicyDetails, currentHash: string): string {
+  const policyInCode = policyDetails.policyInCode;
+  const policyInService = policyDetails.policyInService;
+
+  if (policyInService.error) {
     //The error here will be 'HTTP - Not Found'. This scenario covers Create a New policy.
-    prettyDebugLog(`Policy with id : ${gitPolicyDetails.policy.id}, path : ${gitPolicyDetails.path} does not exist in azure. A new policy will be created.`);
+    prettyDebugLog(`Policy with id : ${policyInCode.id}, path : ${policyDetails.path} does not exist in azure. A new policy will be created.`);
     return POLICY_OPERATION_CREATE;
   }
 
@@ -356,7 +311,7 @@ function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: an
    *  Complete    - Ignore updates and push ALL files in the path
    */
   const mode = Inputs.mode;
-  let azureHash = getHashFromMetadata(azurePolicy);
+  let azureHash = getHashFromMetadata(policyInService);
 
   if (Inputs.MODE_COMPLETE === mode || !azureHash) {
     /**
@@ -366,12 +321,12 @@ function getPolicyOperationType(gitPolicyDetails: PolicyDetails, azurePolicy: an
      * Scenario 2: If policy file Hash is not available on Policy Service (one such scenario will be the very first time this action
      * is run on an already existing policy) we need to update the file.
      */
-    prettyDebugLog(`IgnoreHash is : ${mode} OR GitHub properties/metaData is not present for policy id : ${gitPolicyDetails.policy.id}`);
+    prettyDebugLog(`IgnoreHash is : ${mode} OR GitHub properties/metaData is not present for policy id : ${policyInCode.id}`);
     return POLICY_OPERATION_UPDATE;
   }
 
   //If user has chosen to push only updated files i.e 'mode' == Incremental AND a valid hash is available in policy metadata compare them.
-  prettyDebugLog(`Comparing Hash for policy id : ${gitPolicyDetails.policy.id} : ${azureHash === currentHash}`);
+  prettyDebugLog(`Comparing Hash for policy id : ${policyInCode.id} : ${azureHash === currentHash}`);
   return (azureHash === currentHash) ? POLICY_OPERATION_NONE : POLICY_OPERATION_UPDATE;
 
 }

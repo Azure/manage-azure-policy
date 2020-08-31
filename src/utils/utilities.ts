@@ -13,3 +13,13 @@ export function prettyDebugLog(text: string) {
 export function getWorkflowRunUrl(): string {
   return `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
 }
+
+export function splitArray(array: any[], chunkSize: number): any[] {
+  let results = [];
+
+  while (array.length) {
+    results.push(array.splice(0, chunkSize));
+  }
+
+  return results;
+}
