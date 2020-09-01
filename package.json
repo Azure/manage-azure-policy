@@ -1,22 +1,12 @@
 {
-  "name": "azpac-action",
+  "name": "manage-azure-policy",
   "version": "0.0.0",
-  "description": "Action to manage Azure policies",
   "main": "lib/run.js",
   "scripts": {
-    "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ajinkya599/AzPac-action.git"
-  },
-  "author": "Ajinkya",
+  "author": "GitHub",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/ajinkya599/AzPac-action/issues"
-  },
-  "homepage": "https://github.com/ajinkya599/AzPac-action#readme",
   "devDependencies": {
     "@types/node": "^14.0.27",
     "typescript": "^3.9.7"
