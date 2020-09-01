@@ -136,8 +136,7 @@ jobs:
           policies/**  # path to directory where policy files were downloaded in runner
         enforce:  |          
           '!assign.denyVMSKUs*.json'; #DoNotEnforce 
-          'assign.addTags*.json'
-        
+          'assign.addTags*.json'        
         
 ```
 The above workflow will apply policy files changes only in /azure-policy/policies/** directory. For each directory, all assignment filenames matching _assign.denyVMSKUs*.json_ pattern will be applied to Azure policy with [doNotEnforce](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode. All  assignment filenames matching _assign.addTags*.json_ pattern will be applied to Azure policy with [default](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode(i.e., they will be enforced). 
@@ -146,8 +145,6 @@ The above workflow will apply policy files changes only in /azure-policy/policie
 
 
 ## Configure credentials for Azure login action:
-
-[TODO] Details of how to add policy contributor permission
 
 With the Azure login Action, you can perform an Azure login using [Azure service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals). The credentials of Azure Service Principal can be added as [secrets](https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables) in the GitHub repository and then used in the workflow. Follow the below steps to generate credentials and store in github.
 
