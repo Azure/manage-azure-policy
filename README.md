@@ -76,7 +76,7 @@ jobs:
           policies/**  # path to directory where policy files were downloaded in runner
         
 ```
-The above workflow will apply policy files changees in /azure-policy/policies/** ([see pattern syntax](https://facelessuser.github.io/wcmatch/glob/)) directory to Azure Policy.
+The above workflow will apply policy files changees in policies/** ([see pattern syntax](https://facelessuser.github.io/wcmatch/glob/)) directory to Azure Policy.
 
 
 ### Sample workflow to apply only a subset of assignments from a given directory to Azure Policy
