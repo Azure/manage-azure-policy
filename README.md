@@ -3,7 +3,7 @@
 
 With Manage Azure Policy Action you can now create or update Azure policies from your GitHub Workflows. Since workflows are totally customizable, you can have a complete control over the sequence in which Azure policies are rolled out. Its now even easier to follow safe deployment practices and catch regressions or bugs well before policies are applied on  critical resources. 
 
-Manage Azure Policy Action assumes that all the Azure policy files are already available in the source reporitory in a defined directory structure. [TODO - add link]. You can use the recently rolled out 'Export' feature [TODO - add link] in Azure Policy service to export selected policies to GitHub. 
+Manage Azure Policy Action assumes that all the Azure policy files are already available in the source reporitory in a defined directory structure. See pre-requisites. You can use the recently rolled out 'Export Definition' feature in Azure Policy to export selected policies to GitHub.
 
 New to Azure Policy? Its an Azure service that lets you enforce organizational standards and asses compliance at scale. To know more check out: [Azure Policies - Overview](https://docs.microsoft.com/en-us/azure/governance/policy/overview)
 
@@ -13,7 +13,22 @@ The definition of this Github Action is in action.yml[TODO - add link]
 # Pre-requisites:
 * Azure Login Action: Authenticate using [Azure Login](https://github.com/Azure/login)  action. The Manage Azure Policy action assumes that Azure Login is done using an Azure service principal that has [sufficient permissions](https://docs.microsoft.com/en-us/azure/governance/policy/overview#rbac-permissions-in-azure-policy) to write policy on selected scopes. Once login is done, the next set of actions in the workflow can perform tasks such as creating policies or updating them. For more details on permissions, checkout 'Configure credentials for Azure login action' section in this page  or alternatively you can refer the full [documentation](https://github.com/Azure/login) of Azure Login Action.
 * Azure Checkout Action: All  policies files should be downloaded from the GitHub repository to the GitHub runner. You can use [checkout action](https://github.com/actions/checkout) for doing so. Refer the 'End-to-End Sample Workflows' section in this page for examples.
+* Azure Policy files should be present in the following directory structure. You can also export policies from Azure portal. (Go to _Definitions_ section in Azure Policy and Click on _Export definitions_ button)
 
+|- policies/  ___________________________ # Root folder for policies
+|  |- <policy1_name>/  __________________ # Subfolder for a policy
+|     |- policy.json ____________________ # Policy definition
+|     |- assign.<name>.json _____________ # Assignment1 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment2 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment3 for the policy definition in this folder
+|
+|  |- <policy2_name>/  __________________ # Subfolder for another policy
+|     |- policy.json ____________________ # Policy definition
+|     |- assign.<name>.json _____________ # Assignment1 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment2 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment3 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment4 for the policy definition in this folder
+|     |- assign.<name>.json _____________ # Assignment5 for the policy definition in this folder
 
 
 # Inputs for the Action
