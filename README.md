@@ -20,20 +20,20 @@ The definition of this Github Action is in action.yml[TODO - add link]
 ```yaml
 .
 |
-|- policies/  ___________________________ # Root folder for policies
-|  |- <policy1_name>/  __________________ # Subfolder for a policy
-|     |- policy.json ____________________ # Policy definition
-|     |- assign.<name>.json _____________ # Assignment1 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment2 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment3 for the policy definition in this folder
+|- policies/  ____________________________ # Root folder for policies
+|  |- <policy1_name>/  ___________________ # Subfolder for a policy
+|     |- policy.json _____________________ # Policy definition
+|     |- assign.<name1>.json _____________ # Assignment1 for the policy definition in this folder
+|     |- assign.<name2>.json _____________ # Assignment2 for the policy definition in this folder
+|     |- assign.<name3>.json _____________ # Assignment3 for the policy definition in this folder
 |
-|  |- <policy2_name>/  __________________ # Subfolder for another policy
-|     |- policy.json ____________________ # Policy definition
-|     |- assign.<name>.json _____________ # Assignment1 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment2 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment3 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment4 for the policy definition in this folder
-|     |- assign.<name>.json _____________ # Assignment5 for the policy definition in this folder
+|  |- <policy2_name>/  ___________________ # Subfolder for another policy
+|     |- policy.json _____________________ # Policy definition
+|     |- assign.<name1>.json _____________ # Assignment1 for the policy definition in this folder
+|     |- assign.<name2>.json _____________ # Assignment2 for the policy definition in this folder
+|     |- assign.<name3>.json _____________ # Assignment3 for the policy definition in this folder
+|     |- assign.<name4>.json _____________ # Assignment4 for the policy definition in this folder
+|     |- assign.<name5>.json _____________ # Assignment5 for the policy definition in this folder
 
 
 ```
