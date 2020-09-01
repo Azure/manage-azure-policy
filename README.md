@@ -3,8 +3,6 @@
 
 With Manage Azure Policy Action you can now create or update Azure policies from your GitHub Workflows. Since workflows are totally customizable, you can have a complete control over the sequence in which Azure policies are rolled out. Its now even easier to follow safe deployment practices and catch regressions or bugs well before policies are applied on  critical resources. 
 
-Manage Azure Policy Action assumes that all the Azure policy files are already available in the source reporitory in a defined directory structure. See pre-requisites. You can use the recently rolled out 'Export Definition' feature in Azure Policy to export selected policies to GitHub.
-
 New to Azure Policy? Its an Azure service that lets you enforce organizational standards and asses compliance at scale. To know more check out: [Azure Policies - Overview](https://docs.microsoft.com/en-us/azure/governance/policy/overview)
 
 The definition of this Github Action is in action.yml[TODO - add link]
