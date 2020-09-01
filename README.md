@@ -15,6 +15,11 @@ The definition of this Github Action is in action.yml[TODO - add link]
 * Azure Checkout Action: All  policies files should be downloaded from the GitHub repository to the GitHub runner. You can use [checkout action](https://github.com/actions/checkout) for doing so. Refer the 'End-to-End Sample Workflows' section in this page for examples.
 * Azure Policy files should be present in the following directory structure. You can also export policies from Azure portal. (Go to _Definitions_ section in Azure Policy and Click on _Export definitions_ button)
 
+
+
+```yaml
+.
+|
 |- policies/  ___________________________ # Root folder for policies
 |  |- <policy1_name>/  __________________ # Subfolder for a policy
 |     |- policy.json ____________________ # Policy definition
@@ -29,6 +34,10 @@ The definition of this Github Action is in action.yml[TODO - add link]
 |     |- assign.<name>.json _____________ # Assignment3 for the policy definition in this folder
 |     |- assign.<name>.json _____________ # Assignment4 for the policy definition in this folder
 |     |- assign.<name>.json _____________ # Assignment5 for the policy definition in this folder
+
+
+```
+
 
 
 # Inputs for the Action
