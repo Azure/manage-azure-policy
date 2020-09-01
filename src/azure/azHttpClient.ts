@@ -141,9 +141,8 @@ export class AzHttpClient {
     webRequest.headers = {
       "Authorization": `Bearer ${this.token}`,
       "Content-Type": "application/json; charset=utf-8",
+      "User-Agent": `${process.env.AZURE_HTTP_USER_AGENT}`
     };
-
-    // TODO : add action userAgent
 
     if(payload) {
       webRequest.body = JSON.stringify(payload);

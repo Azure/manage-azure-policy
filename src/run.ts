@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as Inputs from './inputProcessing/inputs';
 import { POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
-import { prettyDebugLog } from './utils/utilities'
+import { prettyDebugLog, setUpUserAgent } from './utils/utilities'
 
 /**
  * Entry point for Action
@@ -11,14 +11,10 @@ async function run() {
 
   let policyResults: PolicyResult[] = null;
   try {
-
-    //1. Fetch polices from GitHub repo that needs to Created or Updated
+    Inputs.readInputs();
+    setUpUserAgent();
+    
     const policyRequests: PolicyRequest[] = await getAllPolicyRequests();
-
-    // TODO remove this, For test purpose
-    policyRequests.forEach((policyReq) => {
-      prettyDebugLog(`Path : ${policyReq.path}\nOperation : ${policyReq.operation}\nPolicy : ${JSON.stringify(policyReq.policy, null, 4)}`);
-    });
 
     //2. Push above polices to Azure policy service
     policyResults = await createUpdatePolicies(policyRequests);
