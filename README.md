@@ -40,7 +40,7 @@ The definition of this Github Action is in [action.yml](https://github.com/azure
 
 # Inputs for the Action
 
-* `paths`: mandatory. The path(s) to the directory that contains Azure policy files. The files present only in these directories  will be considered by this action for updating policies in Azure. You can use wild card characters as mentioned * or ** for specifying sub folders in a path. For more details on the use of the wild cards check [glob wildcard patterns](https://facelessuser.github.io/wcmatch/glob/). Note that a definition file should be named as _'policy.json'_ and assignment filenames should start with _'assign'_ keyword.
+* `paths`: mandatory. The path(s) to the directory that contains Azure policy files. The files present only in these directories  will be considered by this action for updating policies in Azure. You can use wild card characters as mentioned * or ** for specifying sub folders in a path. For more details on the use of the wild cards check [glob wildcard patterns](https://github.com/isaacs/node-glob#glob-primer). Note that a definition file should be named as _'policy.json'_ and assignment filenames should start with _'assign'_ keyword.
 * `ignore-paths`: Optional. These are the directory paths that will be ignored by the action. If you have a specific policy folder that is not ready to be applied yet, specify the path here. Note that ignore-paths has a higher precedence compared to `paths` parameter.
 * `assignments`: Optional. These are policy assignment files that would be considered by the action. This parameter is especially useful if you want to apply only those assignments that correspond to a specific environment for following a safe deployment practice. E.g. _assign.AllowedVMSKUs-dev-rg.json_. You can use wild card character '*' to match multiple file names. E.g. _assign.\*dev\*.json_. If this parameter is not specified, the action will consider all assignment files that are present in the directories mentioned in `paths` parameter.
 * `mode`: Optional. There are 2 modes for this action - _incremental_ and _complete_. If not specified, the action will use incremental mode by default. In incremental mode, the action will compare already exisiting policy in azure with the contents of policy provided in repository file. It will apply the policy only if there is a mismatch. On the contrary, the complete mode will apply all the files present in the specified paths irrespective of whether or not repository policy file has been updated.
@@ -76,7 +76,7 @@ jobs:
           policies/**  # path to directory where policy files were downloaded in runner
         
 ```
-The above workflow will apply policy files changees in policies/** ([see pattern syntax](https://facelessuser.github.io/wcmatch/glob/)) directory to Azure Policy.
+The above workflow will apply policy files changees in policies/** ([see pattern syntax](https://github.com/isaacs/node-glob#glob-primer)) directory to Azure Policy.
 
 
 ### Sample workflow to apply only a subset of assignments from a given directory to Azure Policy
