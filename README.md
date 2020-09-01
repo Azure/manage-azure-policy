@@ -66,9 +66,11 @@ jobs:
     - name: Login to Azure
       uses: azure/login@v1
       with:
-        creds: ${{secrets.AZURE_CREDENTIALS}}  
+        creds: ${{secrets.AZURE_CREDENTIALS}}
+
     - name: Checkout
       uses: actions/checkout@v2 
+
     - name: Create or Update Azure Policies
       uses: azure/manage-azure-policy@v0
       with:      
@@ -96,8 +98,10 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{secrets.AZURE_CREDENTIALS}}  
+
     - name: Checkout
       uses: actions/checkout@v2 
+
     - name: Create or Update Azure Policies
       uses: azure/manage-azure-policy@v0
       with:      
@@ -127,8 +131,10 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{secrets.AZURE_CREDENTIALS}}  
+
     - name: Checkout
       uses: actions/checkout@v2 
+
     - name: Create or Update Azure Policies
       uses: azure/manage-azure-policy@v0
       with:      
@@ -154,10 +160,9 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   
   * Run the below Azure cli command and copy the output JSON object to your clipboard.
 
-[TODO] update commands to have proper permission..
 ```bash  
   
-   az ad sp create-for-rbac --name "myApp" --role contributor \
+   az ad sp create-for-rbac --name "myApp" --role "Resource Policy Contributor"  \
                             --scopes /subscriptions/{subscription-id} \
                             --sdk-auth
                             
@@ -183,7 +188,7 @@ If needed, you can modify the Azure CLI command to further reduce the scope for 
 
 ```bash  
   
-   az ad sp create-for-rbac --name "myApp" --role contributor \
+   az ad sp create-for-rbac --name "myApp" --role "Resource Policy Contributor"  \
                             --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group} \
                             --sdk-auth
                             
@@ -195,7 +200,7 @@ You can also provide permissions to multiple scopes using the Azure CLI command:
 
 ```bash  
   
-   az ad sp create-for-rbac --name "myApp" --role contributor \
+   az ad sp create-for-rbac --name "myApp" --role "Resource Policy Contributor"  \
                             --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group1} \
                             /subscriptions/{subscription-id}/resourceGroups/{resource-group2} \
                             --sdk-auth

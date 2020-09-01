@@ -20,7 +20,7 @@ const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
 const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
 const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
 const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
-const POLICY_METADATA_HASH_KEY = "policyHash";
+const POLICY_METADATA_HASH_KEY = "digest";
 const ENFORCEMENT_MODE_KEY = "enforcementMode";
 const ENFORCEMENT_MODE_ENFORCE = "Default";
 const ENFORCEMENT_MODE_DO_NOT_ENFORCE = "DoNotEnforce";
@@ -49,9 +49,10 @@ export interface PolicyResult {
 
 export interface PolicyMetadata {
   commitSha: string;
-  policyHash: string;
-  repo: string;
+  digest: string;
+  repoName: string;
   runUrl: string;
+  filepath: string;
 }
 
 export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
@@ -266,19 +267,20 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
   return allPolicyDetails;
 }
 
-function getWorkflowMetadata(policyHash: string): PolicyMetadata {
+function getWorkflowMetadata(policyHash: string, filepath: string): PolicyMetadata {
   let metadata: PolicyMetadata = {
-    policyHash: policyHash,
-    repo: process.env.GITHUB_REPOSITORY,
+    digest: policyHash,
+    repoName: process.env.GITHUB_REPOSITORY,
     commitSha: process.env.GITHUB_SHA,
-    runUrl: getWorkflowRunUrl()
+    runUrl: getWorkflowRunUrl(),
+    filepath: filepath
   }
 
   return metadata;
 }
 
 function getPolicyRequest(policyDetails: PolicyDetails, hash: string, operation: string): PolicyRequest {
-  let metadata = getWorkflowMetadata(hash);
+  let metadata = getWorkflowMetadata(hash, policyDetails.path);
 
   if (!policyDetails.policyInCode.properties) {
     policyDetails.policyInCode.properties = {};
