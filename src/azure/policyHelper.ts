@@ -13,7 +13,7 @@ export const POLICY_OPERATION_CREATE = "CREATE";
 export const POLICY_OPERATION_UPDATE = "UPDATE";
 export const POLICY_OPERATION_NONE = "NONE";
 export const POLICY_RESULT_FAILED = "FAILED";
-const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
+export const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
 export const POLICY_FILE_NAME = "policy.json";
 const POLICY_RULES_FILE_NAME = "policy.rules.json";
 const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
@@ -41,9 +41,10 @@ export interface PolicyResult {
   path: string;
   type: string;
   operation: string;
-  name: string;
+  displayName: string;
   status: string;
   message: string;
+  policyDefinitionId: string;
 }
 
 export interface PolicyMetadata {
@@ -138,6 +139,7 @@ function getPolicyDefinition(definitionPath: string): any {
     }
   }
 
+  validateDefinition(definition, definitionPath);
   return definition;
 }
 
@@ -159,6 +161,7 @@ function getPolicyAssignment(assignmentPath: string): any {
     assignment.properties[ENFORCEMENT_MODE_KEY] = ENFORCEMENT_MODE_ENFORCE;
   }
 
+  validateAssignment(assignment, assignmentPath);
   return assignment;
 }
 
@@ -169,6 +172,7 @@ function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[
     const isCreate: boolean = isCreateOperation(policyRequest);
     const azureResponse: any = policyResponses[index];
     const policyType: string = policyRequest.policy.type == DEFINITION_TYPE ? 'definition' : 'assignment';
+    const policyDefinitionId: string = policyRequest.policy.type == DEFINITION_TYPE ? policyRequest.policy.id : policyRequest.policy.properties.policyDefinitionId;
     let status = "";
     let message = "";
 
@@ -189,9 +193,10 @@ function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[
       path: policyRequest.path,
       type: policyRequest.policy.type,
       operation: policyRequest.operation,
-      name: policyRequest.policy.name,
+      displayName: policyRequest.policy.name,
       status: status,
-      message: message
+      message: message,
+      policyDefinitionId: policyDefinitionId
     });
   });
 
@@ -202,23 +207,31 @@ function isCreateOperation(policyRequest: PolicyRequest): boolean {
   return policyRequest.operation == POLICY_OPERATION_CREATE;
 }
 
-function validateDefinition(definition: any): void {
+function validateDefinition(definition: any, path: string): void {
   if (!definition.id) {
-    throw Error('Property id is missing from the policy definition. Please add id to the policy.json file.');
+    throw Error(`Path : ${path}. Property id is missing from the policy definition. Please add id to the policy.json file.`);
   }
 
   if (!definition.name) {
-    throw Error('Property name is missing from the policy definition. Please add name to the policy.json file.');
+    throw Error(`Path : ${path}. Property name is missing from the policy definition. Please add name to the policy.json file.`);
+  }
+
+  if (!definition.type) {
+    throw Error(`Path : ${path}. Property type is missing from the policy definition. Please add type to the policy.json file.`);
   }
 }
 
-function validateAssignment(assignment: any): void {
+function validateAssignment(assignment: any, path: string): void {
   if (!assignment.id) {
-    throw Error('Property id is missing from the policy assignment. Please add id to the assignment file.');
+    throw Error(`Path : ${path}. Property id is missing from the policy assignment. Please add id to the assignment file.`);
   }
 
   if (!assignment.name) {
-    throw Error('Property name is missing from the policy assignment. Please add name to the assignment file.');
+    throw Error(`Path : ${path}. Property name is missing from the policy assignment. Please add name to the assignment file.`);
+  }
+
+  if (!assignment.type) {
+    throw Error(`Path : ${path}. Property type is missing from the policy assignment. Please add type to the assignment file.`);
   }
 }
 
