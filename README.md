@@ -19,10 +19,10 @@ The definition of this Github Action is in action.yml[TODO - add link]
 # Inputs for the Action
 
 * `paths`: mandatory. The path(s) to the directory that contains Azure policy files. The files present only in these directories  will be considered by this action for updating policies in Azure. You can use wild card characters as mentioned * or ** for specifying sub folders in a path. For more details on the use of the wild cards check [glob wildcard patterns](https://facelessuser.github.io/wcmatch/glob/). Note that a definition file should be named as _'policy.json'_ and assignment filenames should start with _'assign'_ keyword.
-* `ignore-paths`: Optional. These are the directory paths that will be ignored by the action. If you have a specific policy folder that is not ready to be applied yet, specify the path here. Note that ignore-paths has a higher precedence compared to paths.
-* `assignments`: Optional. These are policy assignment files that would be considered by the action. This parameter is especially useful if you want to apply only those assignments that correspond to a specific environment. E.g. _assign.AllowedVMSKUs-dev-rg.json_. You can use wild card character '*' to match multiple file names. E.g. _assign.\*dev\*.json_. If this parameter is not specified, the action will consider all assignment files that are present in the directories mentioned in paths parameter.
+* `ignore-paths`: Optional. These are the directory paths that will be ignored by the action. If you have a specific policy folder that is not ready to be applied yet, specify the path here. Note that ignore-paths has a higher precedence compared to `paths` parameter.
+* `assignments`: Optional. These are policy assignment files that would be considered by the action. This parameter is especially useful if you want to apply only those assignments that correspond to a specific environment for following a safe deployment practice. E.g. _assign.AllowedVMSKUs-dev-rg.json_. You can use wild card character '*' to match multiple file names. E.g. _assign.\*dev\*.json_. If this parameter is not specified, the action will consider all assignment files that are present in the directories mentioned in `paths` parameter.
 * `mode`: Optional. There are 2 modes for this action - incremental and complete. If not specified, the action will use incremental mode by default. In incremental mode, the action will compare already exisiting policy in azure with the contents of policy provided in repository file. It will apply the policy only if there is a mismatch. On the contrary, the complete mode will apply all the files present in the specified paths irrespective of whether or not repository policy file has been updated.
-* `enforce`: Optional. This corresponds to the [enforcement mode](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) in Azure policy assignmetns. This parameter is especially useful when you want to test assignments by first deploying them with doNotEnforce mode. You can specify the assignment file names you want to enforce. E.g. assign.addTags\*.json. To specify doNotEnforce, use a ! before the name. E.g. !assign.denyVMSKUs-*.json.  By default this parameter takes the value specified in the json file. [TODO - how does glob handle wildcard]
+* `enforce`: Optional. This corresponds to the [enforcement mode](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) in Azure policy assignments. This parameter is especially useful when you want to test assignments by first deploying them with _doNotEnforce_ enforcement mode. You can specify the assignment filenames you want to enforce. E.g. _assign.addTags\*.json_. or the ones that you do not want to enforce(use a ! before the filename). E.g. _!assign.denyVMSKUs-*.json_. Note that by default this parameter takes the value specified in the assignment json file, however, the value specified in this action will takes precedence over the one mentioned in assignment file.    [TODO - how does glob handle wildcard]
 * `force-update`: Optional. Defaults to false. If this is set as true, in case of dependency errors(Eg. Updates tries to delete a Policy definition parameter that is used by assignments), the action will try to delete exisiting policy definitions and assignments and recreate them. [TODO -Remove this field?]
 
 
@@ -51,14 +51,14 @@ jobs:
     - name: Create or Update Azure Policies
       uses: azure/manage-azure-policy@v0
       with:      
-        paths:                  
-        - policies/**  # path to directory where policy files were downloaded in runner
+        paths:  |                  
+          policies/**  # path to directory where policy files were downloaded in runner
         
 ```
-The above workflow will apply all the updates to policy files in /azure-policy/policies/** directory to Azure Policy.
+The above workflow will apply policy files changees in /azure-policy/policies/** ([see pattern syntax](https://facelessuser.github.io/wcmatch/glob/)) directory to Azure Policy.
 
 
-### Sample workflow to apply only a subset of assignments from a given directory to Azure policy
+### Sample workflow to apply only a subset of assignments from a given directory to Azure Policy
 
 
 ```yaml
@@ -80,13 +80,48 @@ jobs:
     - name: Create or Update Azure Policies
       uses: azure/manage-azure-policy@v0
       with:      
-        paths:                  
-        - policies/**  # path to directory where policy files were downloaded in runner
-        assignments:
-        - assign.*_devRG_*.json # Apply only assignment files that match this pattern
+        paths:  |                
+          policies/**  # path to directory where policy files were downloaded in runner
+        assignments:  |
+          assign.*_testRG_*.json # Apply only assignment files that match this pattern
         
 ```
-The above workflow will apply all the updates to policy files in /azure-policy/policies/** directory to Azure Policy.
+The above workflow will apply policy files changes only in /azure-policy/policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
+
+
+### Sample workflow to apply policies in a specific enforcement mode
+
+
+```yaml
+# File: .github/workflows/workflow.yml
+
+on: push
+
+jobs:
+  apply-azure-policy:    
+    runs-on: ubuntu-latest
+    steps:
+    # Azure Login       
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{secrets.AZURE_CREDENTIALS}}  
+    - name: Checkout
+      uses: actions/checkout@v2 
+    - name: Create or Update Azure Policies
+      uses: azure/manage-azure-policy@v0
+      with:      
+        paths:  |                
+          policies/**  # path to directory where policy files were downloaded in runner
+        enforce:  |          
+          '!assign.denyVMSKUs*.json'; #DoNotEnforce 
+          'assign.addTags*.json'
+        
+        
+```
+The above workflow will apply policy files changes only in /azure-policy/policies/** directory. For each directory, all assignment filenames matching _assign.denyVMSKUs*.json_ pattern will be applied to Azure policy with [doNotEnforce](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode. All  assignment filenames matching _assign.addTags*.json_ pattern will be applied to Azure policy with [default](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode(i.e., they will be enforced). 
+
+
 
 
 ## Configure credentials for Azure login action:
