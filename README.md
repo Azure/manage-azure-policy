@@ -107,7 +107,7 @@ jobs:
           assign.*_testRG_*.json # Apply only assignment files that match this pattern
         
 ```
-The above workflow will apply policy files changes only in /azure-policy/policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
+The above workflow will apply policy files changes only in policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
 
 
 ### Sample workflow to apply policies in a specific enforcement mode
@@ -139,7 +139,7 @@ jobs:
           'assign.addTags*.json'        
         
 ```
-The above workflow will apply policy files changes only in /azure-policy/policies/** directory. For each directory, all assignment filenames matching _assign.denyVMSKUs*.json_ pattern will be applied to Azure policy with [doNotEnforce](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode. All  assignment filenames matching _assign.addTags*.json_ pattern will be applied to Azure policy with [default](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode(i.e., they will be enforced). 
+The above workflow will apply policy files changes only in policies/** directory. For each directory, all assignment filenames matching _assign.denyVMSKUs*.json_ pattern will be applied to Azure policy with [doNotEnforce](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode. All  assignment filenames matching _assign.addTags*.json_ pattern will be applied to Azure policy with [default](https://docs.microsoft.com/en-us/azure/governance/policy/concepts/assignment-structure#enforcement-mode) enforcement mode(i.e., they will be enforced). 
 
 
 
