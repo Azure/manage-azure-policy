@@ -8,7 +8,6 @@ import { prettyDebugLog, setUpUserAgent } from './utils/utilities'
  * Entry point for Action
  */
 async function run() {
-
   let policyResults: PolicyResult[] = null;
   try {
     Inputs.readInputs();

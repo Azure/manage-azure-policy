@@ -7,8 +7,8 @@ import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities
 import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
 
-export const DEFINITION_TYPE = "definition";
-export const ASSIGNMENT_TYPE = "assignment";
+export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
+export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
 export const POLICY_OPERATION_CREATE = "CREATE";
 export const POLICY_OPERATION_UPDATE = "UPDATE";
 export const POLICY_OPERATION_NONE = "NONE";
@@ -27,7 +27,7 @@ const ENFORCEMENT_MODE_DO_NOT_ENFORCE = "DoNotEnforce";
 
 export interface PolicyRequest {
   path: string;
-  type: string;
+  policy: any;
   operation: string;
 }
 
@@ -56,9 +56,6 @@ export interface PolicyMetadata {
 }
 
 export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
-
-  const paths = getInputPaths();
-
   let policyRequests: PolicyRequest[] = [];
 
   try {
