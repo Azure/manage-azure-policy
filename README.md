@@ -187,7 +187,7 @@ You can also provide permissions to multiple scopes using the Azure CLI command:
 ```
 # Feedback
 
-If you have any changes you’d like to see or suggestions for this action, then we’d love your feedback. Please feel free to raise a GitHub issue in this repository describing your suggestion. This would enable us to categorize properly and track it. You can do the same if you encounter a problem with the feature.
+If you have any changes you’d like to see or suggestions for this action,  we’d love your feedback ❤️ . Please feel free to raise a GitHub issue in this repository describing your suggestion. This would enable us to label and track it properly. You can do the same if you encounter a problem with the feature as well.
 
 # Contributing
 
