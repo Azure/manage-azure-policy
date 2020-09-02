@@ -24,6 +24,7 @@ const POLICY_METADATA_HASH_KEY = "digest";
 const ENFORCEMENT_MODE_KEY = "enforcementMode";
 const ENFORCEMENT_MODE_ENFORCE = "Default";
 const ENFORCEMENT_MODE_DO_NOT_ENFORCE = "DoNotEnforce";
+const POLICY_DEFINITION_BUILTIN = "BuiltIn";
 
 export interface PolicyRequest {
   path: string;
@@ -242,10 +243,16 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
 
   definitionPaths.forEach(definitionPath => {
     const definition = getPolicyDefinition(definitionPath);
-    allPolicyDetails.push({
-      path: definitionPath,
-      policyInCode: definition
-    } as PolicyDetails);
+
+    if (definition.properties && definition.properties.policyType == POLICY_DEFINITION_BUILTIN) {
+      prettyDebugLog(`Ignoring policy definition with BuiltIn type. Id : ${definition.id}, path : ${definitionPath}`);
+    } 
+    else {
+      allPolicyDetails.push({
+        path: definitionPath,
+        policyInCode: definition
+      } as PolicyDetails);
+    }
   });
 
   assignmentPaths.forEach(assignmentPath => {
