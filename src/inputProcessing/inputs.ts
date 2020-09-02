@@ -68,7 +68,7 @@ export function readInputs() {
 }
 
 function getInputArray(input: string): string[] | undefined {
-  return input ? input.split('\n') : undefined;
+  return input ? input.split('\n').map(item => item.trim()) : undefined;
 }
 
 function isExcludeInput(input: string): boolean {
