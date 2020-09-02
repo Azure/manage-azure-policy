@@ -1,5 +1,5 @@
 name: 'Manage Azure Policy'
-description: 'With Manage Azure Policy Action you can now create or update Azure policies from your GitHub Workflows. Since workflows are totally customizable, you can have a complete control over the sequence in which Azure policies are rolled out. Its now even easier to follow safe deployment practices and catch regressions or bugs well before policies are applied on  critical resources.'
+description: 'With Manage Azure Policy Action you can now create or update Azure policies from your GitHub Workflows.'
 inputs: 
   paths:
     description: 'mandatory. The path(s) to the directory that contains Azure policy files. The files present only in these directories  will be considered by this action for updating policies in Azure. You can use wild card characters as mentioned * or ** for specifying sub folders in a path. For more details on the use of the wild cards check [glob wildcard patterns](https://github.com/isaacs/node-glob#glob-primer). Note that a definition file should be named as policy.json and assignment filenames should start with assign keyword.'
