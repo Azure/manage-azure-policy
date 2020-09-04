@@ -5,7 +5,7 @@ With Manage Azure Policy Action you can now create or update Azure policies from
 
 New to Azure Policy? Its an Azure service that lets you enforce organizational standards and asses compliance at scale. To know more check out: [Azure Policies - Overview](https://docs.microsoft.com/en-us/azure/governance/policy/overview)
 
-The definition of this Github Action is in [action.yml](https://github.com/azure/manage-azure-policy/action.yml)
+The definition of this Github Action is in [action.yml](https://github.com/azure/manage-azure-policy/blob/main/action.yml)
 
 
 # Pre-requisites:
