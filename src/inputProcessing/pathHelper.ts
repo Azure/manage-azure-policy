@@ -1,6 +1,7 @@
 import * as glob from 'glob';
 import minimatch from 'minimatch';
 import * as path from 'path';
+import * as core from '@actions/core';
 import * as Inputs from './inputs';
 import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME } from '../azure/policyHelper';
 
@@ -35,21 +36,20 @@ export function getAllPolicyDefinitionPaths(): string[] {
   *          3) Contain policy.json as a sibling.
   *          4) File name matches any pattern given in assignments input.
   */
+
 export function getAllPolicyAssignmentPaths(): string[] {
-  const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.includeAssignmentPatterns);
-  const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(Inputs.excludePathPatterns, Inputs.excludeAssignmentPatterns);
-  return assignmentPathsToInclude.filter(a => !assignmentPathsToExclude.includes(a));
+  return getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.assignmentPatterns);
 }
 
 export function isEnforced(assignmentPath: string): boolean {
   return Inputs.enforcePatterns.some(pattern => {
-    return minimatch(assignmentPath, pattern, { matchBase: true });
+    return minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
   });
 }
 
 export function isNonEnforced(assignmentPath: string): boolean {
   return Inputs.doNotEnforcePatterns.some(pattern => {
-    return minimatch(assignmentPath, pattern, { matchBase: true });
+    return minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
   });
 }
 
@@ -58,6 +58,7 @@ function getPolicyPathsMatchingPatterns(patterns: string[], policyFileName: stri
   patterns.forEach(pattern => {
     const policyFilePattern = path.join(pattern, policyFileName);
     const policyFiles: string[] = getFilesMatchingPattern(policyFilePattern);
+    core.debug(`Policy file pattern: ${policyFilePattern}\n Matching policy paths: ${policyFiles}`);
     matchingPolicyPaths.push(...policyFiles.map(policyFile => path.dirname(policyFile)));
   });
 
@@ -68,7 +69,9 @@ function getAssignmentPathsMatchingPatterns(patterns: string[], assignmentPatter
   let matchingAssignmentPaths: string[] = [];
   patterns.forEach(policyPath => {
     assignmentPatterns.forEach(assignmentPattern => {
-      const assignmentPaths = getFilesMatchingPattern(path.join(policyPath, assignmentPattern));
+      const pattern = path.join(policyPath, assignmentPattern);
+      const assignmentPaths = getFilesMatchingPattern(pattern);
+      core.debug(`Assignment pattern: ${pattern}\n Matching assignment paths: ${assignmentPaths}`);
       matchingAssignmentPaths.push(...assignmentPaths);
     });
   });
@@ -77,7 +80,7 @@ function getAssignmentPathsMatchingPatterns(patterns: string[], assignmentPatter
 }
 
 function getFilesMatchingPattern(pattern: string): string[] {
-  return glob.sync(pattern);
+  return glob.sync(pattern, { dot: true });
 }
 
 function getUniquePaths(paths: string[]): string[] {

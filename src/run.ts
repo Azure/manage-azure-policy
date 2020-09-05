@@ -36,11 +36,12 @@ function setResult(policyResults: PolicyResult[]): void {
     const failedCount: number = policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length;
     if (failedCount > 0) {
       core.setFailed(`Found '${failedCount}' failure(s) while deploying policies.`);
-    } else {
+    } else if (policyResults.length > 0) {
       core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
+    } else {
+      core.warning(`Did not find any policies to update. Please ensure that policy definition files are named policy.json. This can also happen if there is no change in policies and '${Inputs.INPUT_MODE}' is not set to '${Inputs.MODE_COMPLETE}'.`);
     }
   }
-
 }
 
 run();
