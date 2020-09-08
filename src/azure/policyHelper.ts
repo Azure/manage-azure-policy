@@ -4,10 +4,11 @@ import { AzHttpClient } from './azHttpClient';
 import { doesFileExist, getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog } from '../utils/utilities';
-import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths } from '../inputProcessing/pathHelper';
+import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
 
 export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
+export const INITIATIVE_TYPE = "Microsoft.Authorization/policySetDefinitions";
 export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
 export const POLICY_OPERATION_CREATE = "CREATE";
 export const POLICY_OPERATION_UPDATE = "UPDATE";
@@ -15,10 +16,17 @@ export const POLICY_OPERATION_NONE = "NONE";
 export const POLICY_RESULT_FAILED = "FAILED";
 export const POLICY_RESULT_SUCCEEDED = "SUCCEEDED";
 export const POLICY_FILE_NAME = "policy.json";
+export const POLICY_SET_FILE_NAME = "policyset.json";
+export const FRIENDLY_DEFINITION_TYPE = "definition";
+export const FRIENDLY_INITIATIVE_TYPE = "initiative";
+export const FRIENDLY_ASSIGNMENT_TYPE = "assignment";
 const POLICY_RULES_FILE_NAME = "policy.rules.json";
 const POLICY_PARAMETERS_FILE_NAME = "policy.parameters.json";
+const POLICY_SET_PARAMETERS_FILE_NAME = "policyset.parameters.json";
+const POLICY_SET_DEFINITIONS_FILE_NAME = "policyset.definitions.json";
 const POLICY_DEFINITION_NOT_FOUND = "PolicyDefinitionNotFound";
 const POLICY_ASSIGNMENT_NOT_FOUND = "PolicyAssignmentNotFound";
+const POLICY_SET_DEFINITION_NOT_FOUND = "PolicySetDefinitionNotFound";
 const POLICY_METADATA_GITHUB_KEY = "gitHubPolicy";
 const POLICY_METADATA_HASH_KEY = "digest";
 const ENFORCEMENT_MODE_KEY = "enforcementMode";
@@ -68,7 +76,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
       const currentHash = getObjectHash(gitPolicy);
       const azurePolicy = policyDetails.policyInService;
 
-      if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND) {
+      if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND && azurePolicy.error.code != POLICY_SET_DEFINITION_NOT_FOUND ) {
         // There was some error while fetching the policy.
         prettyLog(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
       }
@@ -92,17 +100,43 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
 
   let policyResults: PolicyResult[] = [];
 
-  // Dividing policy requests into definitions and assignments.
-  const definitionRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == DEFINITION_TYPE);
-  const assignmentRequests: PolicyRequest[] = policyRequests.filter(req => req.policy.type == ASSIGNMENT_TYPE);
+  // Dividing policy requests into definitions, initiatives and assignments.
+  const [definitionRequests, initiativeRequests, assignmentRequests] = dividePolicyRequests(policyRequests);
 
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
-  policyResults.push(...getPolicyResults(definitionRequests, definitionResponses));
+  policyResults.push(...getPolicyResults(definitionRequests, definitionResponses, FRIENDLY_DEFINITION_TYPE));
+
+  const initiativeResponses = await azHttpClient.upsertPolicyInitiatives(initiativeRequests);
+  policyResults.push(...getPolicyResults(initiativeRequests, initiativeResponses, FRIENDLY_INITIATIVE_TYPE));
 
   const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
-  policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses));
+  policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses, FRIENDLY_ASSIGNMENT_TYPE));
 
   return Promise.resolve(policyResults);
+}
+
+function dividePolicyRequests(policyRequests: PolicyRequest[]) {
+  let definitionRequests: PolicyRequest[] = [];
+  let initiativeRequests: PolicyRequest[] = [];
+  let assignmentRequests: PolicyRequest[] = [];
+
+  policyRequests.forEach(policyRequest => {
+    switch(policyRequest.policy.type) {
+      case DEFINITION_TYPE : 
+        definitionRequests.push(policyRequest);
+        break;
+      case INITIATIVE_TYPE : 
+        initiativeRequests.push(policyRequest);
+        break;
+      case ASSIGNMENT_TYPE : 
+        assignmentRequests.push(policyRequest);
+        break;
+      default :
+        prettyDebugLog(`Unknown type for policy in path : ${policyRequest.path}`);
+    }
+  });
+  
+  return [definitionRequests, initiativeRequests, assignmentRequests];
 }
 
 function getPolicyDefinition(definitionPath: string): any {
@@ -138,8 +172,45 @@ function getPolicyDefinition(definitionPath: string): any {
     }
   }
 
-  validateDefinition(definition, definitionPath);
+  validatePolicy(definition, definitionPath, FRIENDLY_DEFINITION_TYPE);
   return definition;
+}
+
+function getPolicyInitiative(initiativePath: string): any {
+  const policySetPath = path.join(initiativePath, POLICY_SET_FILE_NAME);
+  const policySetParametersPath = path.join(initiativePath, POLICY_SET_PARAMETERS_FILE_NAME);
+  const policySetDefinitionsPath = path.join(initiativePath, POLICY_SET_DEFINITIONS_FILE_NAME);
+
+  let initiative = getFileJson(policySetPath);
+
+  if ((!initiative.properties || !initiative.properties.policyDefinitions) && doesFileExist(policySetDefinitionsPath)) {
+    const policySetDefinitionsJson = getFileJson(policySetDefinitionsPath);
+    if (policySetDefinitionsJson) {
+      if (!initiative.properties) {
+        // If properties is missing from the initiative object and we obtain policyDefinitions from the
+        // policyDefinitions file, add properties.
+        initiative.properties = {};
+      }
+
+      initiative.properties.policyDefinitions = policySetDefinitionsJson;
+    }
+  }
+
+  if ((!initiative.properties || !initiative.properties.parameters) && doesFileExist(policySetParametersPath)) {
+    const policySetParametersJson = getFileJson(policySetParametersPath);
+    if (policySetParametersJson) {
+      if (!initiative.properties) {
+        // If properties is missing from the initiative object and we obtain parameters from the
+        // policy parameters file, add properties.
+        initiative.properties = {};
+      }
+
+      initiative.properties.parameters = policySetParametersJson;
+    }
+  }
+
+  validatePolicy(initiative, initiativePath, FRIENDLY_INITIATIVE_TYPE);
+  return initiative;
 }
 
 function getPolicyAssignment(assignmentPath: string): any {
@@ -160,18 +231,17 @@ function getPolicyAssignment(assignmentPath: string): any {
     assignment.properties[ENFORCEMENT_MODE_KEY] = ENFORCEMENT_MODE_ENFORCE;
   }
 
-  validateAssignment(assignment, assignmentPath);
+  validatePolicy(assignment, assignmentPath, FRIENDLY_ASSIGNMENT_TYPE);
   return assignment;
 }
 
-function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[]): PolicyResult[] {
+function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
   let policyResults: PolicyResult[] = [];
 
   policyRequests.forEach((policyRequest, index) => {
     const isCreate: boolean = isCreateOperation(policyRequest);
     const azureResponse: any = policyResponses[index];
-    const policyType: string = policyRequest.policy.type == DEFINITION_TYPE ? 'definition' : 'assignment';
-    const policyDefinitionId: string = policyRequest.policy.type == DEFINITION_TYPE ? policyRequest.policy.id : policyRequest.policy.properties.policyDefinitionId;
+    const policyDefinitionId: string = policyRequest.policy.type == ASSIGNMENT_TYPE ? policyRequest.policy.properties.policyDefinitionId : policyRequest.policy.id;
     let status = "";
     let message = "";
 
@@ -206,31 +276,17 @@ function isCreateOperation(policyRequest: PolicyRequest): boolean {
   return policyRequest.operation == POLICY_OPERATION_CREATE;
 }
 
-function validateDefinition(definition: any, path: string): void {
-  if (!definition.id) {
-    throw Error(`Path : ${path}. Property id is missing from the policy definition. Please add id to the policy.json file.`);
+function validatePolicy(policy: any, path: string, type: string): void {
+  if (!policy.id) {
+    throw Error(`Path : ${path}. Property id is missing from the policy ${type}. Please add id to the ${type} file.`);
   }
 
-  if (!definition.name) {
-    throw Error(`Path : ${path}. Property name is missing from the policy definition. Please add name to the policy.json file.`);
+  if (!policy.name) {
+    throw Error(`Path : ${path}. Property name is missing from the policy ${type}. Please add name to the ${type} file.`);
   }
 
-  if (!definition.type) {
-    throw Error(`Path : ${path}. Property type is missing from the policy definition. Please add type to the policy.json file.`);
-  }
-}
-
-function validateAssignment(assignment: any, path: string): void {
-  if (!assignment.id) {
-    throw Error(`Path : ${path}. Property id is missing from the policy assignment. Please add id to the assignment file.`);
-  }
-
-  if (!assignment.name) {
-    throw Error(`Path : ${path}. Property name is missing from the policy assignment. Please add name to the assignment file.`);
-  }
-
-  if (!assignment.type) {
-    throw Error(`Path : ${path}. Property type is missing from the policy assignment. Please add type to the assignment file.`);
+  if (!policy.type) {
+    throw Error(`Path : ${path}. Property type is missing from the policy ${type}. Please add type to the ${type} file.`);
   }
 }
 
@@ -239,7 +295,8 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
   let allPolicyDetails: PolicyDetails[] = [];
 
   const definitionPaths = getAllPolicyDefinitionPaths();
-  const assignmentPaths = getAllPolicyAssignmentPaths(definitionPaths);
+  const initiativePaths = getAllInitiativesPaths();
+  const assignmentPaths = getAllPolicyAssignmentPaths([...definitionPaths, ...initiativePaths]);
 
   definitionPaths.forEach(definitionPath => {
     const definition = getPolicyDefinition(definitionPath);
@@ -251,6 +308,20 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
       allPolicyDetails.push({
         path: definitionPath,
         policyInCode: definition
+      } as PolicyDetails);
+    }
+  });
+
+  initiativePaths.forEach(initiativePath => {
+    const initiative = getPolicyInitiative(initiativePath);
+
+    if (initiative.properties && initiative.properties.policyType == POLICY_DEFINITION_BUILTIN) {
+      prettyDebugLog(`Ignoring policy initiative with BuiltIn type. Id : ${initiative.id}, path : ${initiativePath}`);
+    } 
+    else {
+      allPolicyDetails.push({
+        path: initiativePath,
+        policyInCode: initiative
       } as PolicyDetails);
     }
   });
