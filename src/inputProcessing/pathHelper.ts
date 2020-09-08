@@ -2,7 +2,7 @@ import * as glob from 'glob';
 import minimatch from 'minimatch';
 import * as path from 'path';
 import * as Inputs from './inputs';
-import { POLICY_FILE_NAME } from '../azure/policyHelper';
+import { POLICY_FILE_NAME, POLICY_SET_FILE_NAME } from '../azure/policyHelper';
 
 /**
   * @returns All the directories that:
@@ -11,8 +11,20 @@ import { POLICY_FILE_NAME } from '../azure/policyHelper';
   *          3) Contain policy.json files.
   */
 export function getAllPolicyDefinitionPaths(): string[] {
-  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns);
-  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns);
+  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_FILE_NAME);
+  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_FILE_NAME);
+  return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
+}
+
+/**
+  * @returns All the directories that:
+  *          1) Match any pattern given in paths input.
+  *          2) Do not match any pattern given in ignore-paths input or pattern starting with '!' in path input.
+  *          3) Contain policyset.json files.
+  */
+ export function getAllInitiativesPaths(): string[] {
+  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_SET_FILE_NAME);
+  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_SET_FILE_NAME);
   return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
 }
 
@@ -41,10 +53,10 @@ export function isNonEnforced(assignmentPath: string): boolean {
   });
 }
 
-function getPolicyPathsMatchingPatterns(patterns: string[]): string[] {
+function getPolicyPathsMatchingPatterns(patterns: string[], policyFileName: string): string[] {
   let matchingPolicyPaths: string[] = [];
   patterns.forEach(pattern => {
-    const policyFilePattern = path.join(pattern, POLICY_FILE_NAME);
+    const policyFilePattern = path.join(pattern, policyFileName);
     const policyFiles: string[] = getFilesMatchingPattern(policyFilePattern);
     matchingPolicyPaths.push(...policyFiles.map(policyFile => path.dirname(policyFile)));
   });
