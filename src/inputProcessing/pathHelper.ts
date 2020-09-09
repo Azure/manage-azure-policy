@@ -2,7 +2,7 @@ import * as glob from 'glob';
 import minimatch from 'minimatch';
 import * as path from 'path';
 import * as Inputs from './inputs';
-import { POLICY_FILE_NAME, POLICY_SET_FILE_NAME } from '../azure/policyHelper';
+import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME } from '../azure/policyHelper';
 
 /**
   * @returns All the directories that:
@@ -23,8 +23,8 @@ export function getAllPolicyDefinitionPaths(): string[] {
   *          3) Contain policyset.json files.
   */
  export function getAllInitiativesPaths(): string[] {
-  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_SET_FILE_NAME);
-  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_SET_FILE_NAME);
+  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_INITIATIVE_FILE_NAME);
+  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_INITIATIVE_FILE_NAME);
   return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
 }
 
