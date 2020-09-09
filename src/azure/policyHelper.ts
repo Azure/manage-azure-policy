@@ -285,7 +285,7 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
 }
 
 function getPolicyDetails(policyPath: string, policyType: string): PolicyDetails {
-  let policyDetails: PolicyDetails;
+  let policyDetails: PolicyDetails = {} as PolicyDetails;
   let policy: any;
 
   try {
