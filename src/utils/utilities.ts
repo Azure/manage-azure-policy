@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as crypto from "crypto";
+import { doesFileExist, getFileJson } from './fileHelper';
 
 const TEXT_PARTITION: string = "----------------------------------------------------------------------------------------------------";
 
@@ -51,4 +52,26 @@ export function groupBy(array: any[], property: string): any {
 
 export function repeatString(str: string, repeatCount: number): string {
   return str.repeat(repeatCount);
+}
+
+/**
+ * Populates property to the given object from the provided jsonfile. If jsonfile does not contain the property whole json object is populated.
+ * 
+ * @param object object to which property needs to be populated
+ * @param jsonFilePath File from which property is to be read
+ * @param propertyName Name of property which needs to be populated
+ */
+export function populatePropertyFromJsonFile(object: any, jsonFilePath: string, propertyName: string) {
+  if (doesFileExist(jsonFilePath)){
+    const jsonObj = getFileJson(jsonFilePath);
+    if (jsonObj) {
+      // If same property exists in jsonObj then fetch that else use whole json object
+      if (jsonObj[propertyName]) {
+        object[propertyName] = jsonObj[propertyName];
+      }
+      else {
+        object[propertyName] = jsonObj;
+      }
+    }
+  }
 }

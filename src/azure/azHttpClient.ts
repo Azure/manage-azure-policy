@@ -51,6 +51,10 @@ export class AzHttpClient {
     return this.upsertPolicies(policyRequests);
   }
 
+  async upsertPolicyInitiatives(policyRequests: PolicyRequest[]): Promise<any[]> {
+    return this.upsertPolicies(policyRequests);
+  }
+
   async upsertPolicyAssignments(policyRequests: PolicyRequest[]): Promise<any[]> {
     return this.upsertPolicies(policyRequests);
   }
