@@ -253,7 +253,7 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
 
   const definitionPaths = getAllPolicyDefinitionPaths();
   const initiativePaths = getAllInitiativesPaths();
-  const assignmentPaths = getAllPolicyAssignmentPaths([...definitionPaths, ...initiativePaths]);
+  const assignmentPaths = getAllPolicyAssignmentPaths();
 
   definitionPaths.forEach(definitionPath => {
       const definitionDetails = getPolicyDetails(definitionPath, DEFINITION_TYPE);

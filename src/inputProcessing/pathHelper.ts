@@ -35,9 +35,9 @@ export function getAllPolicyDefinitionPaths(): string[] {
   *          3) Contain policy.json as a sibling.
   *          4) File name matches any pattern given in assignments input.
   */
-export function getAllPolicyAssignmentPaths(allPolicyDefinitionPaths: string[]): string[] {
-  const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(allPolicyDefinitionPaths, Inputs.includeAssignmentPatterns);
-  const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(allPolicyDefinitionPaths, Inputs.excludeAssignmentPatterns);
+export function getAllPolicyAssignmentPaths(): string[] {
+  const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.includeAssignmentPatterns);
+  const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(Inputs.excludePathPatterns, Inputs.excludeAssignmentPatterns);
   return assignmentPathsToInclude.filter(a => !assignmentPathsToExclude.includes(a));
 }
 
@@ -64,9 +64,9 @@ function getPolicyPathsMatchingPatterns(patterns: string[], policyFileName: stri
   return getUniquePaths(matchingPolicyPaths);
 }
 
-function getAssignmentPathsMatchingPatterns(allPolicyDefinitionPaths: string[], assignmentPatterns: string[]): string[] {
+function getAssignmentPathsMatchingPatterns(patterns: string[], assignmentPatterns: string[]): string[] {
   let matchingAssignmentPaths: string[] = [];
-  allPolicyDefinitionPaths.forEach(policyPath => {
+  patterns.forEach(policyPath => {
     assignmentPatterns.forEach(assignmentPattern => {
       const assignmentPaths = getFilesMatchingPattern(path.join(policyPath, assignmentPattern));
       matchingAssignmentPaths.push(...assignmentPaths);
