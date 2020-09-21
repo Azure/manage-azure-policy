@@ -11,13 +11,11 @@ With these new features:
 
 ### Export Policies from Azure Portal
 
-You can now select one or more policies and export them to a repository of your choice in GitHub.
-
 
    > **NOTE:**
    > This feature is under a **private preview** and you can access this using [this URL](https://aka.ms/exportpolicy).
 
-To export a policy definition from Azure portal, follow these steps:
+To export azure policy from Azure portal, follow these steps:
 
 1. Launch the Azure Policy service in the Azure portal by clicking **All services**, then searching
    for and selecting **Policy**.
