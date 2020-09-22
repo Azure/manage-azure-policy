@@ -2,11 +2,11 @@ name: "Trigger Integration tests"
 on:
   push:
     branches:
-      - master
+      - main
       - 'releases/*'
   pull_request:
     branches:
-      - master
+      - main
       - 'releases/*'
 jobs: 
     trigger-integration-tests:
@@ -26,7 +26,7 @@ jobs:
         - name: Trigger Test run
           if: |
            github.event.pull_request.base.ref == 'releases/v0' || steps.extract_branch.outputs.branchname == 'releases/v0' || 
-           github.event.pull_request.base.ref == 'master' || steps.extract_branch.outputs.branchname == 'master'
+           github.event.pull_request.base.ref == 'main' || steps.extract_branch.outputs.branchname == 'main'
           run: |
               bash ./IntegrationTests/.github/workflows/InvokeL2RepoDispatchEvent.sh ${{ secrets.L2_REPO_TOKEN }} ${{ github.event.pull_request.head.sha }} ${{ github.repository }} ${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.base.ref }} 
            
