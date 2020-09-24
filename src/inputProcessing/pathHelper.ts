@@ -12,7 +12,9 @@ import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME } from '../azure/policyHe
   *          3) Contain policy.json files.
   */
 export function getAllPolicyDefinitionPaths(): string[] {
+  core.debug('Looking for policy definition paths to include...');
   const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_FILE_NAME);
+  core.debug('Looking for policy definition paths to ignore...');
   const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_FILE_NAME);
   return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
 }
@@ -23,8 +25,10 @@ export function getAllPolicyDefinitionPaths(): string[] {
   *          2) Do not match any pattern given in ignore-paths input or pattern starting with '!' in path input.
   *          3) Contain policyset.json files.
   */
- export function getAllInitiativesPaths(): string[] {
+export function getAllInitiativesPaths(): string[] {
+  core.debug('Looking for policy initiative paths to include...');
   const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_INITIATIVE_FILE_NAME);
+  core.debug('Looking for policy initiative paths to ignore...');
   const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_INITIATIVE_FILE_NAME);
   return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
 }
@@ -42,14 +46,24 @@ export function getAllPolicyAssignmentPaths(): string[] {
 }
 
 export function isEnforced(assignmentPath: string): boolean {
+  core.debug(`Checking if assignment path '${assignmentPath}' is set to enforce`);
   return Inputs.enforcePatterns.some(pattern => {
-    return minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
+    const isMatch = minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
+    if (isMatch) {
+      core.debug(`Assignment path '${assignmentPath}' matches pattern '${pattern}' for enforce`);
+    }
+    return isMatch;
   });
 }
 
 export function isNonEnforced(assignmentPath: string): boolean {
+  core.debug(`Checking if assignment path '${assignmentPath}' is set to do not enforce`);
   return Inputs.doNotEnforcePatterns.some(pattern => {
-    return minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
+    const isMatch = minimatch(assignmentPath, pattern, { dot: true, matchBase: true });
+    if (isMatch) {
+      core.debug(`Assignment path '${assignmentPath}' matches pattern '~${pattern}' for do not enforce`);
+    }
+    return isMatch;
   });
 }
 

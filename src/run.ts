@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import * as Inputs from './inputProcessing/inputs';
-import { POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
+import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
-import { prettyDebugLog, setUpUserAgent } from './utils/utilities'
+import { setUpUserAgent } from './utils/utilities'
 
 /**
  * Entry point for Action
@@ -39,7 +39,7 @@ function setResult(policyResults: PolicyResult[]): void {
     } else if (policyResults.length > 0) {
       core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
     } else {
-      core.warning(`Did not find any policies to update. Please ensure that policy definition files are named policy.json. This can also happen if there is no change in policies and '${Inputs.INPUT_MODE}' is not set to '${Inputs.MODE_COMPLETE}'.`);
+      core.warning(`Did not find any policies to create/update. Please ensure that policy definition files are named '${POLICY_FILE_NAME}' and policy initiative files are named '${POLICY_INITIATIVE_FILE_NAME}'. This can also happen if there is no change in policies AND '${Inputs.INPUT_MODE}' is not set to '${Inputs.MODE_COMPLETE}'.`);
     }
   }
 }
