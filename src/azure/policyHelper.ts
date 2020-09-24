@@ -389,7 +389,6 @@ function getPolicyOperationType(policyDetails: PolicyDetails, currentHash: strin
   //If user has chosen to push only updated files i.e 'mode' == Incremental AND a valid hash is available in policy metadata compare them.
   prettyDebugLog(`Comparing Hash for policy id : ${policyInCode.id} : ${azureHash === currentHash}`);
   return (azureHash === currentHash) ? POLICY_OPERATION_NONE : POLICY_OPERATION_UPDATE;
-
 }
 
 /**

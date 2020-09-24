@@ -1,8 +1,8 @@
 import * as core from '@actions/core';
 import * as Inputs from './inputProcessing/inputs';
-import { POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
+import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
-import { prettyDebugLog, setUpUserAgent } from './utils/utilities'
+import { setUpUserAgent } from './utils/utilities'
 
 /**
  * Entry point for Action
@@ -36,11 +36,20 @@ function setResult(policyResults: PolicyResult[]): void {
     const failedCount: number = policyResults.filter(result => result.status === POLICY_RESULT_FAILED).length;
     if (failedCount > 0) {
       core.setFailed(`Found '${failedCount}' failure(s) while deploying policies.`);
-    } else {
+    } else if (policyResults.length > 0) {
       core.info(`All policies deployed successfully. Created/updated '${policyResults.length}' definitions/assignments.`);
+    } else {
+      let warningMessage: string;
+      if(Inputs.mode == Inputs.MODE_COMPLETE) {
+        warningMessage = `Did not find any policies to create/update. No policy files match the given patterns. If you have policy definitions or policy initiatives, please ensure that the files are named '${POLICY_FILE_NAME}' and '${POLICY_INITIATIVE_FILE_NAME}' respectively.`;
+      }
+      else {
+        warningMessage = `Did not find any policies to create/update. No policy files match the given patterns or no changes were detected. If you have policy definitions or policy initiatives, please ensure that the files are named '${POLICY_FILE_NAME}' and '${POLICY_INITIATIVE_FILE_NAME}' respectively.`;
+      }
+
+      core.warning(warningMessage);
     }
   }
-
 }
 
 run();

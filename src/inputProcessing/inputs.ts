@@ -4,8 +4,8 @@ const INPUT_PATHS_KEY = 'paths';
 const INPUT_IGNORE_PATHS_KEY = 'ignore-paths';
 const INPUT_ASSIGNMENTS_KEY = 'assignments';
 const INPUT_ENFORCEMENT_MODE_KEY = 'enforce';
-const INPUT_MODE = "mode";
-const EXCLUDE_PREFIX = '!';
+export const INPUT_MODE = "mode";
+const DO_NOT_ENFORCE_PREFIX = '~';
 const DEFAULT_ASSIGNMENT_PATTERN = 'assign.*.json';
 export const MODE_INCREMENTAL = "incremental";
 export const MODE_COMPLETE = "complete";
@@ -18,8 +18,7 @@ export let mode: string = MODE_INCREMENTAL;
 
 export let includePathPatterns: string[] = [];
 export let excludePathPatterns: string[] = [];
-export let includeAssignmentPatterns: string[] = [];
-export let excludeAssignmentPatterns: string[] = [];
+export let assignmentPatterns: string[] = [];
 export let enforcePatterns: string[] = [];
 export let doNotEnforcePatterns: string[] = [];
 
@@ -37,9 +36,9 @@ export function readInputs() {
 
   validateAssignments();
   validateEnforcementMode();
-  
+
   paths.forEach(path => {
-    isExcludeInput(path) ? excludePathPatterns.push(path.substring(1)) : includePathPatterns.push(path);
+    includePathPatterns.push(path);
   });
 
   if (ignorePaths) {
@@ -50,17 +49,17 @@ export function readInputs() {
 
   if (assignments) {
     assignments.forEach(assignment => {
-      isExcludeInput(assignment) ? excludeAssignmentPatterns.push(assignment.substring(1)) : includeAssignmentPatterns.push(assignment);
+      assignmentPatterns.push(assignment);
     });
   }
 
-  if (includeAssignmentPatterns.length == 0) {
-    includeAssignmentPatterns.push(DEFAULT_ASSIGNMENT_PATTERN);
+  if (assignmentPatterns.length == 0) {
+    assignmentPatterns.push(DEFAULT_ASSIGNMENT_PATTERN);
   }
 
   if (enforcementMode) {
     enforcementMode.forEach(enforcementMode => {
-      isExcludeInput(enforcementMode)
+      enforcementMode.startsWith(DO_NOT_ENFORCE_PREFIX)
         ? doNotEnforcePatterns.push(enforcementMode.substring(1))
         : enforcePatterns.push(enforcementMode);
     });
@@ -71,20 +70,32 @@ function getInputArray(input: string): string[] | undefined {
   return input ? input.split('\n').map(item => item.trim()) : undefined;
 }
 
-function isExcludeInput(input: string): boolean {
-  return input.startsWith(EXCLUDE_PREFIX);
-}
-
 function validateAssignments(): void {
-  if (assignments && hasGlobStarPattern(assignments)) {
-    throw Error(`Input '${INPUT_ASSIGNMENTS_KEY}' should not contain globstar pattern '**'.`);
-  }
+  validateAssignmentLikePatterns(INPUT_ASSIGNMENTS_KEY, assignments);
 }
 
 function validateEnforcementMode(): void {
-  if (enforcementMode && hasGlobStarPattern(enforcementMode)) {
-    throw Error(`Input '${INPUT_ENFORCEMENT_MODE_KEY}' should not contain globstar pattern '**'.`);
+  validateAssignmentLikePatterns(INPUT_ENFORCEMENT_MODE_KEY, enforcementMode);
+}
+
+function validateAssignmentLikePatterns(inputName: string, patterns?: string[]): void {
+  if (!patterns) {
+    return;
   }
+
+  if (hasSlashInPattern(patterns)) {
+    throw Error(`Input '${inputName}' should not contain directory separator '/' in any pattern.`);
+  }
+
+  if (hasGlobStarPattern(patterns)) {
+    throw Error(`Input '${inputName}' should not contain globstar '**' in any pattern.`);
+  }
+}
+
+function hasSlashInPattern(patterns: string[]): boolean {
+  return patterns.some(pattern => {
+    return pattern.includes('/');
+  });
 }
 
 function hasGlobStarPattern(patterns: string[]): boolean {
