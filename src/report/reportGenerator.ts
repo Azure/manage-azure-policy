@@ -4,17 +4,16 @@ import { PolicyResult, POLICY_RESULT_SUCCEEDED } from '../azure/policyHelper';
 
 const TITLE_PATH: string = 'PATH';
 const TITLE_TYPE: string = 'TYPE';
-const TITLE_OPERATION: string = 'OPERATION';
-const TITLE_NAME: string = 'NAME';
 const TITLE_STATUS: string = 'STATUS';
+const TITLE_NAME: string = 'NAME';
 const TITLE_MESSAGE: string = 'MESSAGE';
 
 export function printSummary(policyResults: PolicyResult[]) {
   let successRows: any[] = [];
   let errorRows: any[] = [];
 
-  let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_OPERATION, TITLE_STATUS, TITLE_MESSAGE];
-  const widths = [ 25, 10, 25, 10, 10, 45 ];
+  let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_STATUS, TITLE_MESSAGE];
+  const widths = [25, 10, 25, 10, 45];
   successRows.push(titles);
   errorRows.push(titles);
   const rowSeparator = getRowSeparator(widths);
@@ -36,14 +35,13 @@ function populateRows(groupedResult: any, successRows: any[], errorRows: any[], 
     let successRowAdded: boolean = false;
     let errorRowAdded: boolean = false;
 
-    const policyDefinitionResults: PolicyResult[]  = groupedResult[policyDefinitionId];
+    const policyDefinitionResults: PolicyResult[] = groupedResult[policyDefinitionId];
     policyDefinitionResults.forEach((policyResult: PolicyResult) => {
       let row: string[] = [];
       row.push(policyResult.displayName);
       row.push(policyResult.type);
       row.push(policyResult.path);
-      row.push(policyResult.operation);
-      row.push(policyResult.status);
+      row.push(policyResult.operation + " : " + policyResult.status);
       row.push(policyResult.message);
 
       if (policyResult.status == POLICY_RESULT_SUCCEEDED) {
@@ -61,7 +59,7 @@ function populateRows(groupedResult: any, successRows: any[], errorRows: any[], 
     }
     if (errorRowAdded) {
       errorRows.push(rowSeparator);
-    }   
+    }
   }
 }
 
