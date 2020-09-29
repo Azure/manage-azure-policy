@@ -14,7 +14,7 @@ export function printSummary(policyResults: PolicyResult[]) {
   let errorRows: any[] = [];
 
   let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_OPERATION, TITLE_STATUS, TITLE_MESSAGE];
-  const widths = [ 30, 10, 25, 10, 10, 50 ];
+  const widths = [ 25, 10, 25, 10, 10, 45 ];
   successRows.push(titles);
   errorRows.push(titles);
   const rowSeparator = getRowSeparator(widths);
