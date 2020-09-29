@@ -13,7 +13,7 @@ export function printSummary(policyResults: PolicyResult[]) {
   let errorRows: any[] = [];
 
   let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_STATUS, TITLE_MESSAGE];
-  const widths = [25, 10, 25, 7, 45];
+  const widths = [25, 10, 25, 9, 45];
   successRows.push(titles);
   errorRows.push(titles);
   const rowSeparator = getRowSeparator(widths);
@@ -41,7 +41,7 @@ function populateRows(groupedResult: any, successRows: any[], errorRows: any[], 
       row.push(policyResult.displayName);
       row.push(policyResult.type);
       row.push(policyResult.path);
-      row.push(policyResult.operation + ":" + policyResult.status);
+      row.push(policyResult.operation + " : " + policyResult.status);
       row.push(policyResult.message);
 
       if (policyResult.status == POLICY_RESULT_SUCCEEDED) {
