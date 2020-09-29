@@ -4,7 +4,7 @@ import { PolicyResult, POLICY_RESULT_SUCCEEDED } from '../azure/policyHelper';
 
 const TITLE_PATH: string = 'PATH';
 const TITLE_TYPE: string = 'TYPE';
-const TITLE_OPERATION: string = 'STATUS';
+const TITLE_STATUS: string = 'STATUS';
 const TITLE_NAME: string = 'NAME';
 const TITLE_MESSAGE: string = 'MESSAGE';
 
@@ -12,8 +12,8 @@ export function printSummary(policyResults: PolicyResult[]) {
   let successRows: any[] = [];
   let errorRows: any[] = [];
 
-  let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_OPERATION, TITLE_MESSAGE];
-  const widths = [25, 10, 25, 10, 45];
+  let titles = [TITLE_NAME, TITLE_TYPE, TITLE_PATH, TITLE_STATUS, TITLE_MESSAGE];
+  const widths = [25, 10, 25, 7, 45];
   successRows.push(titles);
   errorRows.push(titles);
   const rowSeparator = getRowSeparator(widths);
