@@ -8,7 +8,7 @@ import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME } from '../azure/policyHe
 /**
   * @returns All the directories that:
   *          1) Match any pattern given in paths input.
-  *          2) Do not match any pattern given in ignore-paths input or pattern starting with '!' in path input.
+  *          2) Do not match any pattern given in ignore-paths input.
   *          3) Contain policy.json files.
   */
 export function getAllPolicyDefinitionPaths(): string[] {
@@ -22,7 +22,7 @@ export function getAllPolicyDefinitionPaths(): string[] {
 /**
   * @returns All the directories that:
   *          1) Match any pattern given in paths input.
-  *          2) Do not match any pattern given in ignore-paths input or pattern starting with '!' in path input.
+  *          2) Do not match any pattern given in ignore-paths input.
   *          3) Contain policyset.json files.
   */
 export function getAllInitiativesPaths(): string[] {
@@ -36,13 +36,17 @@ export function getAllInitiativesPaths(): string[] {
 /**
   * @returns All the files that:
   *          1) Match any pattern given in paths input.
-  *          2) Do not match pattern given in ignore-paths input or pattern starting with '!' in path input.
+  *          2) Do not match pattern given in ignore-paths input.
   *          3) Contain policy.json as a sibling.
   *          4) File name matches any pattern given in assignments input.
   */
 
 export function getAllPolicyAssignmentPaths(): string[] {
-  return getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.assignmentPatterns);
+  core.debug('Looking for policy assignment paths to include...');
+  const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.assignmentPatterns);
+  core.debug('Looking for policy assignment paths to ignore...');
+  const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(Inputs.excludePathPatterns, Inputs.assignmentPatterns);
+  return assignmentPathsToInclude.filter(p => !assignmentPathsToExclude.includes(p));
 }
 
 export function isEnforced(assignmentPath: string): boolean {
