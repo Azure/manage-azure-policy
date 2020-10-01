@@ -11,10 +11,6 @@ With these new features:
 
 ### Export Policies from Azure Portal
 
-
-   > **NOTE:**
-   > This feature is under a **private preview** and you can access this using [this URL](https://aka.ms/exportpolicy).
-
 To export azure policy from Azure portal, follow these steps:
 
 1. Launch the Azure Policy service in the Azure portal by clicking **All services**, then searching
