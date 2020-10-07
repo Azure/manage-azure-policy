@@ -1,9 +1,12 @@
 import { getAccessToken } from './azAuthentication';
-import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
+import { StatusCodes, WebRequest, WebResponse, sendRequest, sleepFor } from "../utils/httpClient";
 import { PolicyDetails, PolicyRequest } from './policyHelper'
-import { splitArray } from '../utils/utilities'
+import { splitArray, prettyDebugLog } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
+const ASYNC_BATCH_CALL_SIZE = 500;
+const BATCH_POLL_TIMEOUT_DURATION: number = 5 * 60 * 1000; // 5 mins
+const BATCH_POLL_INTERVAL: number = 30 * 1000; // 30 secs = 30 * 1000ms
 
 interface BatchRequest {
   name: string,
@@ -97,22 +100,23 @@ export class AzHttpClient {
       });
     });
 
-    let batchResponses = await this.processBatchRequestSync(batchRequests);
+    let batchResponses = await this.processBatchRequestAsync(batchRequests);
 
     // We need to return response in the order of request.
     batchResponses.sort(this.compareBatchResponse);
     return batchResponses;
   }
 
-  async processBatchRequestSync(batchRequests: BatchRequest[]): Promise<BatchResponse[]> {
+  private async processBatchRequestAsync(batchRequests: BatchRequest[]): Promise<BatchResponse[]> {
     let batchResponses: BatchResponse[] = [];
+    let pendingRequests: any[] = [];
 
     if (batchRequests.length == 0) {
       return Promise.resolve([]);
     }
 
-    // For sync implementation we will divide into chunks of 20 requests.
-    const batchRequestsChunks: BatchRequest[][] = splitArray(batchRequests, SYNC_BATCH_CALL_SIZE);
+    // For async implementation we will divide into chunks of 500 requests.
+    const batchRequestsChunks: BatchRequest[][] = splitArray(batchRequests, ASYNC_BATCH_CALL_SIZE);
 
     for (const batchRequests of batchRequestsChunks) {
       const payload: any = { requests: batchRequests };
@@ -123,6 +127,9 @@ export class AzHttpClient {
         if (response.statusCode == StatusCodes.OK) {
           batchResponses.push(...response.body.responses);
         }
+        else if (response.statusCode == StatusCodes.ACCEPTED) {
+          pendingRequests.push(response);
+        }
         else {
           return Promise.reject(
             `An error occured while fetching the batch result. StatusCode: ${response.statusCode}, Body: ${JSON.stringify(response.body)}`
@@ -132,6 +139,67 @@ export class AzHttpClient {
       catch (error) {
         return Promise.reject(error);
       }
+    }
+
+    if (pendingRequests.length > 0) {
+      try {
+        prettyDebugLog(`${pendingRequests.length} batch requests needs to be polled.`);
+        let pendingResponses: BatchResponse[] = await this.pollPendingRequests(pendingRequests);
+        batchResponses.push(...pendingResponses);
+      }
+      catch (error) {
+        return Promise.reject(`Error in polling. ${error}`);
+      }
+    }
+
+    return batchResponses;
+  }
+
+  private async pollPendingRequests(pendingRequests: any[]): Promise<BatchResponse[]> {
+    let batchResponses: BatchResponse[] = [];
+    let hasPollTimedout: boolean = false;
+
+    let pollTimeoutId = setTimeout(() => {
+      hasPollTimedout = true;
+    }, BATCH_POLL_TIMEOUT_DURATION);
+
+    try {
+      while (pendingRequests.length > 0 && !hasPollTimedout) {
+        let currentPendingRequests: any[] = [];
+        
+        // delay before next poll
+        await sleepFor(BATCH_POLL_INTERVAL);
+
+        for (const pendingRequest of pendingRequests) {
+          let response = await this.sendRequest(pendingRequest.headers.location, 'GET', undefined);
+
+          if (response.statusCode == StatusCodes.OK) {
+            batchResponses.push(...response.body.value);
+          }
+          else if (response.statusCode == StatusCodes.ACCEPTED) {
+            currentPendingRequests.push(pendingRequest);
+          }
+          else {
+            return Promise.reject(
+              `An error occured while polling. StatusCode: ${response.statusCode}, Body: ${JSON.stringify(response.body)}`
+            );
+          }
+        }
+        pendingRequests = currentPendingRequests;
+      }
+    }
+    catch (error) {
+      return Promise.reject(`Error in polling. ${error}`);
+    } 
+    finally {
+      if (!hasPollTimedout) {
+        clearTimeout(pollTimeoutId);
+      }
+    }
+
+    if (hasPollTimedout && pendingRequests.length > 0) {
+      prettyDebugLog(`Polling responses timed-out.`);
+      return Promise.reject(`Error in polling. Poll timed-out`);
     }
 
     return batchResponses;
