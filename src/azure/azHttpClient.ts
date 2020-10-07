@@ -136,6 +136,7 @@ export class AzHttpClient {
         }
       }
       catch (error) {
+        prettyDebugLog(`An error occured while processing batch request. Error ${error}`);
         return Promise.reject(error);
       }
     }
