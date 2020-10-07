@@ -3,10 +3,9 @@ import { StatusCodes, WebRequest, WebResponse, sendRequest, sleepFor } from "../
 import { PolicyDetails, PolicyRequest } from './policyHelper'
 import { splitArray, prettyDebugLog } from '../utils/utilities'
 
-const SYNC_BATCH_CALL_SIZE = 20;
 const ASYNC_BATCH_CALL_SIZE = 500;
-const BATCH_POLL_TIMEOUT_DURATION: number = 5 * 60 * 1000; // 5 mins
-const BATCH_POLL_INTERVAL: number = 30 * 1000; // 30 secs = 30 * 1000ms
+const BATCH_POLL_TIMEOUT_DURATION: number = 5 * 60; // 5 mins
+const BATCH_POLL_INTERVAL: number = 30; // 30 secs = 30
 
 interface BatchRequest {
   name: string,
@@ -166,7 +165,7 @@ export class AzHttpClient {
     try {
       while (pendingRequests.length > 0 && !hasPollTimedout) {
         let currentPendingRequests: any[] = [];
-        
+
         // delay before next poll
         await sleepFor(BATCH_POLL_INTERVAL);
 
