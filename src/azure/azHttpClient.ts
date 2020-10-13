@@ -3,6 +3,7 @@ import { StatusCodes, WebRequest, WebResponse, sendRequest, sleepFor } from "../
 import { PolicyDetails, PolicyRequest } from './policyHelper'
 import { splitArray, prettyDebugLog } from '../utils/utilities'
 
+const SYNC_BATCH_CALL_SIZE = 20;
 const ASYNC_BATCH_CALL_SIZE = 500;
 const BATCH_POLL_TIMEOUT_DURATION: number = 5 * 60; // 5 mins
 const BATCH_POLL_INTERVAL: number = 30; // 30 secs = 30
@@ -99,14 +100,15 @@ export class AzHttpClient {
       });
     });
 
-    let batchResponses = await this.processBatchRequestAsync(batchRequests);
+    let batchCallSize = (method == 'PUT') ? SYNC_BATCH_CALL_SIZE : ASYNC_BATCH_CALL_SIZE;
+    let batchResponses = await this.processBatchRequestAsync(batchRequests, batchCallSize);
 
     // We need to return response in the order of request.
     batchResponses.sort(this.compareBatchResponse);
     return batchResponses;
   }
 
-  private async processBatchRequestAsync(batchRequests: BatchRequest[]): Promise<BatchResponse[]> {
+  private async processBatchRequestAsync(batchRequests: BatchRequest[], batchCallSize: number): Promise<BatchResponse[]> {
     let batchResponses: BatchResponse[] = [];
     let pendingRequests: any[] = [];
 
@@ -114,8 +116,7 @@ export class AzHttpClient {
       return Promise.resolve([]);
     }
 
-    // For async implementation we will divide into chunks of 500 requests.
-    const batchRequestsChunks: BatchRequest[][] = splitArray(batchRequests, ASYNC_BATCH_CALL_SIZE);
+    const batchRequestsChunks: BatchRequest[][] = splitArray(batchRequests, batchCallSize);
 
     for (const batchRequests of batchRequestsChunks) {
       const payload: any = { requests: batchRequests };
