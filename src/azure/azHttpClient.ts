@@ -1,6 +1,6 @@
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
-import { PolicyDetails, PolicyRequest } from './policyHelper'
+import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
 import { splitArray } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
@@ -45,6 +45,43 @@ export class AzHttpClient {
     allPolicyDetails.forEach((policyDetails, index) => {
       policyDetails.policyInService = batchResponses[index].content;
     });
+  }
+
+  async getPolicyDefintions(policyIds: string[]):Promise<any[]> {
+    let policies = [];
+
+    policyIds.forEach(policyId => {
+      policies.push({
+        id : policyId
+      });
+    });
+
+    const batchResponses = await this.getBatchResponse(policies, 'GET');
+    if (policyIds.length != batchResponses.length) {
+      throw Error(`Azure batch response count does not match batch request count`);
+    }
+
+    return batchResponses.map(response => response.content);
+  }
+
+  async addRoleAssinments(roleRequests: RoleRequest[]):Promise<BatchResponse[]> {
+    let batchRequests: BatchRequest[] = [];
+
+    roleRequests.forEach((roleRequest, index) => {
+      const policyBatchCallName = this.getPolicyBatchCallName(index);
+      batchRequests.push({
+        url: this.getRoleAssignmentUrl(roleRequest.scope, roleRequest.roleAssignmentId),
+        name: policyBatchCallName,
+        httpMethod: 'PUT',
+        content: this.getRoleAssignmentBody(roleRequest)
+      });
+    });
+
+    let batchResponses = await this.processBatchRequestSync(batchRequests);
+
+    // We need to return response in the order of request.
+    batchResponses.sort(this.compareBatchResponse);
+    return batchResponses;
   }
 
   async upsertPolicyDefinitions(policyRequests: PolicyRequest[]): Promise<any[]> {
@@ -157,6 +194,19 @@ export class AzHttpClient {
 
   private getResourceUrl(resourceId: string): string {
     return `${this.managementUrl}${resourceId}?api-version=${this.apiVersion}`;
+  }
+
+  private getRoleAssignmentUrl(scope: string, roleAssignmentId: string): string {
+    return `https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${roleAssignmentId}?api-version=${this.apiVersion}`
+  }
+
+  private getRoleAssignmentBody(roleRequest: RoleRequest): any {
+    return {
+      properties : {
+        roleDefinitionId: `/${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
+        principalId: roleRequest.principalId
+      }
+    }
   }
 
   private compareBatchResponse(response1: BatchResponse, response2: BatchResponse): number {
