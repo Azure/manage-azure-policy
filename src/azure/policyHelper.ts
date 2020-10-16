@@ -224,10 +224,10 @@ async function createRoleRequests(roleRequests: RoleRequest[]) {
         prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequests[index].policyAssignmentId}`);
       }
       else if (response.content.error) {
-        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Error : ${response.content.error}`);
+        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Error : ${response.content.error.message}`);
       }
       else {
-        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}`);
+        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Status : ${response.httpStatusCode}`);
       }
     });
   }

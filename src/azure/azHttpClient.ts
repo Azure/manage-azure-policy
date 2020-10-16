@@ -197,7 +197,7 @@ export class AzHttpClient {
   }
 
   private getRoleAssignmentUrl(scope: string, roleAssignmentId: string): string {
-    return `https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${roleAssignmentId}?api-version=${this.apiVersion}`
+    return `https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${roleAssignmentId}?api-version=${this.roleApiVersion}`
   }
 
   private getRoleAssignmentBody(roleRequest: RoleRequest): any {
@@ -222,5 +222,6 @@ export class AzHttpClient {
   private batchManagementUrl: string = 'https://management.azure.com/batch';
   private apiVersion: string = '2019-09-01';
   private batchApiVersion: string = '2019-09-01';
+  private roleApiVersion: string = '2015-07-01';
   private batchCallUrl: string;
 }
