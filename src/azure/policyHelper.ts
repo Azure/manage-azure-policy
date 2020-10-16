@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
-import { StatusCodes } from "../utils/httpClient";
+import { StatusCodes, sleepFor } from "../utils/httpClient";
 import { getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog, populatePropertyFromJsonFile } from '../utils/utilities';
@@ -212,6 +212,9 @@ async function createRoleRequests(roleRequests: RoleRequest[]) {
     prettyDebugLog(`No role assignments needs to be created`);
     return;
   }
+
+  // Wait for some time before creating
+  sleepFor(10);
 
   try {
     const azHttpClient = new AzHttpClient();

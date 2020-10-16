@@ -1,7 +1,7 @@
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
 import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
-import { splitArray } from '../utils/utilities'
+import { prettyDebugLog, splitArray } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
 
@@ -76,6 +76,9 @@ export class AzHttpClient {
         content: this.getRoleAssignmentBody(roleRequest)
       });
     });
+
+    //TEST remove
+    prettyDebugLog(`role requests : ${JSON.stringify(batchRequests)}`);
 
     let batchResponses = await this.processBatchRequestSync(batchRequests);
 
