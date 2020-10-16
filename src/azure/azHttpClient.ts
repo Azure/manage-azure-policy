@@ -206,7 +206,7 @@ export class AzHttpClient {
   private getRoleAssignmentBody(roleRequest: RoleRequest): any {
     return {
       properties : {
-        roleDefinitionId: `/${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
+        roleDefinitionId: `${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
         principalId: roleRequest.principalId
       }
     }
