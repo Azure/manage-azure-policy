@@ -200,6 +200,9 @@ async function assignRoles(assignmentRequests: PolicyRequest[], assignmentRespon
       prettyDebugLog(`An error occurred while getting role requests for missing policy definitions Error : ${error}`);
     }
   }
+  // Test
+  prettyDebugLog(`role Requests : ${roleRequests}`);
+  prettyDebugLog(`role Requests : ${JSON.stringify(roleRequests)}`);
 
   await createRoleRequests(roleRequests);
 }
@@ -220,10 +223,13 @@ async function createRoleRequests(roleRequests: RoleRequest[]) {
       if (response.httpStatusCode == StatusCodes.CREATED) {
         prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequests[index].policyAssignmentId}`);
       }
+      else if (response.content.error) {
+        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Error : ${response.content.error}`);
+      }
       else {
         prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}`);
       }
-    })
+    });
   }
   catch (error) {
     prettyLog(`An error occurred while creating role assignments. Error: ${error}`);
