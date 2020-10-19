@@ -213,9 +213,9 @@ async function createRoleRequests(roleRequests: RoleRequest[]) {
     return;
   }
 
-  // Wait for some time before creating
-  prettyDebugLog(`wait for 60s`);
-  sleepFor(60);
+  // // Wait for some time before creating
+  // prettyDebugLog(`wait for 60s`);
+  // sleepFor(60);
 
   try {
     const azHttpClient = new AzHttpClient();

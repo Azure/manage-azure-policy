@@ -1,3 +1,4 @@
+import * as core from '@actions/core';
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
 import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
@@ -77,8 +78,6 @@ export class AzHttpClient {
       });
     });
 
-    //TEST remove
-    prettyDebugLog(`role requests : ${JSON.stringify(batchRequests)}`);
 
     let batchResponses = await this.processBatchRequestSync(batchRequests);
 
@@ -174,6 +173,11 @@ export class AzHttpClient {
       }
     }
 
+    prettyDebugLog(`Status of batch calls:`);
+    batchResponses.forEach(response => {
+      core.debug(`Name : ${response.name}. Status : ${response.httpStatusCode}`);
+    });
+
     return batchResponses;
   }
 
@@ -207,6 +211,7 @@ export class AzHttpClient {
     return {
       properties : {
         roleDefinitionId: `${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
+        principalType: "ServicePrincipal",
         principalId: roleRequest.principalId
       }
     }
@@ -225,6 +230,6 @@ export class AzHttpClient {
   private batchManagementUrl: string = 'https://management.azure.com/batch';
   private apiVersion: string = '2019-09-01';
   private batchApiVersion: string = '2019-09-01';
-  private roleApiVersion: string = '2015-07-01';
+  private roleApiVersion: string = '2019-04-01-preview';
   private batchCallUrl: string;
 }
