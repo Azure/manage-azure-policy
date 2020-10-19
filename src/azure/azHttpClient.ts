@@ -212,7 +212,6 @@ export class AzHttpClient {
     return {
       properties : {
         roleDefinitionId: `${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
-        principalType: "ServicePrincipal",
         principalId: roleRequest.principalId
       }
     }
