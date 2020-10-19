@@ -169,7 +169,7 @@ async function assignRoles(assignmentRequests: PolicyRequest[], assignmentRespon
 
     // We will assign roles only when assignmnet was created and has identity field has principalId in it.
     if (isCreateOperation(assignmentRequests[index]) && policyAssignment.identity && policyAssignment.identity.principalId) {
-      // Now we need roleDefinitionIds. We will try to get it from repo else we will make azure api call to get definition.
+      // Now we need roleDefinitionIds. We will try to get it from repo else we will make azure api call later to get definition.
       const definition = definitionsMap.get(policyAssignment.properties.policyDefinitionId);
       if (definition) {
         roleRequests.push(...getRoleRequest(definition, policyAssignment));
@@ -181,40 +181,45 @@ async function assignRoles(assignmentRequests: PolicyRequest[], assignmentRespon
   }
 
   if (pendingAssignments.length > 0) {
-    // For missing policy definitions get them from azure
-    prettyDebugLog(`There are ${pendingAssignments.length} assignments for which definitions needs to be fetched from azure.`);
-    const missingDefinitionIds: string[] = pendingAssignments.map(assignment => assignment.properties.policyDefinitionId);
-    try {
-      const azHttpClient = new AzHttpClient();
-      await azHttpClient.initialize();
-      let missingDefinitions = await azHttpClient.getPolicyDefintions(missingDefinitionIds);
-      for (let index = 0; index < pendingAssignments.length; index++) {
-        const policyAssignment: any = pendingAssignments[index];
-        const policyDefinition: any = missingDefinitions[index];
-
-        if (policyDefinition.error) {
-          roleAssignmentResults.push({
-            path: "NA",
-            type: ROLE_ASSIGNMNET_TYPE,
-            operation: POLICY_OPERATION_CREATE,
-            displayName: `Role Assignment for policy policy assignment id : ${policyAssignment.id}`,
-            status: POLICY_RESULT_FAILED,
-            message: policyDefinition.error.message ? policyDefinition.error.message : "Could not get policy definition from Azure",
-            policyDefinitionId: policyAssignment.properties.policyDefinitionId
-          });
-        }
-        else {
-          roleRequests.push(...getRoleRequest(policyDefinition, policyAssignment));
-        }
-      }
-    }
-    catch (error) {
-      prettyDebugLog(`An error occurred while getting role requests for missing policy definitions. Error : ${error}`);
-      throw new Error(`An error occurred while getting role requests for missing policy definitions. Error: ${error}`);
-    }
+    await getMissingRoleRequests(pendingAssignments, roleRequests, roleAssignmentResults);
   }
 
   await createRoleRequests(roleRequests, roleAssignmentResults);
+}
+
+async function getMissingRoleRequests(pendingAssignments: any[], roleRequests: RoleRequest[], roleAssignmentResults: PolicyResult[]) {
+  // For missing policy definitions get them from azure
+  prettyDebugLog(`There are ${pendingAssignments.length} assignments for which definitions needs to be fetched from azure.`);
+  const missingDefinitionIds: string[] = pendingAssignments.map(assignment => assignment.properties.policyDefinitionId);
+
+  try {
+    const azHttpClient = new AzHttpClient();
+    await azHttpClient.initialize();
+    let missingDefinitions = await azHttpClient.getPolicyDefintions(missingDefinitionIds);
+    for (let index = 0; index < pendingAssignments.length; index++) {
+      const policyAssignment: any = pendingAssignments[index];
+      const policyDefinition: any = missingDefinitions[index];
+
+      if (policyDefinition.error) {
+        roleAssignmentResults.push({
+          path: "NA",
+          type: ROLE_ASSIGNMNET_TYPE,
+          operation: POLICY_OPERATION_CREATE,
+          displayName: `Role Assignment for policy policy assignment id : ${policyAssignment.id}`,
+          status: POLICY_RESULT_FAILED,
+          message: policyDefinition.error.message ? policyDefinition.error.message : "Could not get policy definition from Azure",
+          policyDefinitionId: policyAssignment.properties.policyDefinitionId
+        });
+      }
+      else {
+        roleRequests.push(...getRoleRequest(policyDefinition, policyAssignment));
+      }
+    }
+  }
+  catch (error) {
+    prettyDebugLog(`An error occurred while getting role requests for missing policy definitions. Error : ${error}`);
+    throw new Error(`An error occurred while getting role requests for missing policy definitions. Error: ${error}`);
+  }
 }
 
 async function createRoleRequests(roleRequests: RoleRequest[], roleAssignmentResults: PolicyResult[]) {
@@ -223,20 +228,15 @@ async function createRoleRequests(roleRequests: RoleRequest[], roleAssignmentRes
     return;
   }
 
-  // // Wait for some time before creating
-  // prettyDebugLog(`wait for 60s`);
-  // sleepFor(60);
-
   try {
     const azHttpClient = new AzHttpClient();
     await azHttpClient.initialize();
     let responses = await azHttpClient.addRoleAssinments(roleRequests);
 
-    // verify responses
     responses.forEach((response, index) => {
       if (response.httpStatusCode == StatusCodes.CREATED) {
         prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequests[index].policyAssignmentId}`);
-        
+
         roleAssignmentResults.push({
           path: "NA",
           type: ROLE_ASSIGNMNET_TYPE,
