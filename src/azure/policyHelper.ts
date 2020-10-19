@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
 export const INITIATIVE_TYPE = "Microsoft.Authorization/policySetDefinitions";
 export const ASSIGNMENT_TYPE = "Microsoft.Authorization/policyAssignments";
+export const ROLE_ASSIGNMNET_TYPE = "Microsoft.Authorization/roleAssignments";
 export const POLICY_OPERATION_CREATE = "CREATE";
 export const POLICY_OPERATION_UPDATE = "UPDATE";
 export const POLICY_OPERATION_NONE = "NONE";
@@ -72,6 +73,7 @@ export interface RoleRequest {
   roleDefinitionId: string;
   principalId: string;
   policyAssignmentId: string;
+  policyDefinitionId: string;
 }
 
 export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
@@ -123,8 +125,7 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses, FRIENDLY_ASSIGNMENT_TYPE));
 
   // Now we need to add roles to managed identity for policy remediation.
-  // TODO : We need to add result of role assignments in policyresult
-  await assignRoles(assignmentRequests, assignmentResponses);
+  await assignRoles(assignmentRequests, assignmentResponses, policyResults);
 
   return Promise.resolve(policyResults);
 }
@@ -153,7 +154,7 @@ function dividePolicyRequests(policyRequests: PolicyRequest[]) {
   return [definitionRequests, initiativeRequests, assignmentRequests];
 }
 
-async function assignRoles(assignmentRequests: PolicyRequest[], assignmentResponses: any[]) {
+async function assignRoles(assignmentRequests: PolicyRequest[], assignmentResponses: any[], roleAssignmentResults: PolicyResult[]) {
   let roleRequests: RoleRequest[] = [];
 
   // create map of definition id to definition for all definitions in code
@@ -191,23 +192,32 @@ async function assignRoles(assignmentRequests: PolicyRequest[], assignmentRespon
         const policyAssignment: any = pendingAssignments[index];
         const policyDefinition: any = missingDefinitions[index];
 
-        // TODO : incase there is an error while getting definition we should handle properly
-        // i.e. policyDefinition.error shoule be checked
-        roleRequests.push(...getRoleRequest(policyDefinition, policyAssignment));
+        if (policyDefinition.error) {
+          roleAssignmentResults.push({
+            path: "NA",
+            type: ROLE_ASSIGNMNET_TYPE,
+            operation: POLICY_OPERATION_CREATE,
+            displayName: `Role Assignment for policy policy assignment id : ${policyAssignment.id}`,
+            status: POLICY_RESULT_FAILED,
+            message: policyDefinition.error.message ? policyDefinition.error.message : "Could not get policy definition from Azure",
+            policyDefinitionId: policyAssignment.properties.policyDefinitionId
+          });
+        }
+        else {
+          roleRequests.push(...getRoleRequest(policyDefinition, policyAssignment));
+        }
       }
     }
     catch (error) {
-      prettyDebugLog(`An error occurred while getting role requests for missing policy definitions Error : ${error}`);
+      prettyDebugLog(`An error occurred while getting role requests for missing policy definitions. Error : ${error}`);
+      throw new Error(`An error occurred while getting role requests for missing policy definitions. Error: ${error}`);
     }
   }
-  // Test
-  prettyDebugLog(`role Requests : ${roleRequests}`);
-  prettyDebugLog(`role Requests : ${JSON.stringify(roleRequests)}`);
 
-  await createRoleRequests(roleRequests);
+  await createRoleRequests(roleRequests, roleAssignmentResults);
 }
 
-async function createRoleRequests(roleRequests: RoleRequest[]) {
+async function createRoleRequests(roleRequests: RoleRequest[], roleAssignmentResults: PolicyResult[]) {
   if (roleRequests.length == 0) {
     prettyDebugLog(`No role assignments needs to be created`);
     return;
@@ -226,17 +236,35 @@ async function createRoleRequests(roleRequests: RoleRequest[]) {
     responses.forEach((response, index) => {
       if (response.httpStatusCode == StatusCodes.CREATED) {
         prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequests[index].policyAssignmentId}`);
-      }
-      else if (response.content.error) {
-        prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Error : ${response.content.error.message}`);
+        
+        roleAssignmentResults.push({
+          path: "NA",
+          type: ROLE_ASSIGNMNET_TYPE,
+          operation: POLICY_OPERATION_CREATE,
+          displayName: `Role Assignment for policy assignment id : ${roleRequests[index].policyAssignmentId}`,
+          status: POLICY_RESULT_SUCCEEDED,
+          message: `Role Assignment created with id : ${response.content.id}`,
+          policyDefinitionId: roleRequests[index].policyDefinitionId
+        });
       }
       else {
         prettyLog(`Role assignment could not be created related to assignment id ${roleRequests[index].policyAssignmentId}. Status : ${response.httpStatusCode}`);
+
+        roleAssignmentResults.push({
+          path: "NA",
+          type: ROLE_ASSIGNMNET_TYPE,
+          operation: POLICY_OPERATION_CREATE,
+          displayName: `Role Assignment for policy assignment id : ${roleRequests[index].policyAssignmentId}`,
+          status: POLICY_RESULT_FAILED,
+          message: response.content.error ? response.content.error.message : `Role Assignment could not be created. Status : ${response.httpStatusCode}`,
+          policyDefinitionId: roleRequests[index].policyDefinitionId
+        });
       }
     });
   }
   catch (error) {
     prettyLog(`An error occurred while creating role assignments. Error: ${error}`);
+    throw new Error(`An error occurred while creating role assignments. Error: ${error}`);
   }
 }
 
@@ -254,7 +282,8 @@ function getRoleRequest(policyDefinition: any, assignment: any): RoleRequest[] {
         roleAssignmentId: uuidv4(),
         roleDefinitionId: roleDefId,
         principalId: assignment.identity.principalId,
-        policyAssignmentId: assignment.id
+        policyAssignmentId: assignment.id,
+        policyDefinitionId: policyDefinition.id
       });
     });
   }
