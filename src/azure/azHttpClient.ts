@@ -212,6 +212,7 @@ export class AzHttpClient {
     return {
       properties : {
         roleDefinitionId: `${roleRequest.scope}/providers/Microsoft.Authorization/roleDefinitions/${roleRequest.roleDefinitionId}`,
+        principalType: "ServicePrincipal",
         principalId: roleRequest.principalId
       }
     }
@@ -230,6 +231,6 @@ export class AzHttpClient {
   private batchManagementUrl: string = 'https://management.azure.com/batch';
   private apiVersion: string = '2019-09-01';
   private batchApiVersion: string = '2019-09-01';
-  private roleApiVersion: string = '2015-07-01';
+  private roleApiVersion: string = '2019-04-01-preview';
   private batchCallUrl: string;
 }
