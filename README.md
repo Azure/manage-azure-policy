@@ -74,7 +74,7 @@ jobs:
       uses: azure/manage-azure-policy@v0
       with:      
         paths:  |                  
-          policies/**  # path to directory where policy files were downloaded in runner
+          policies/**
         
 ```
 The above workflow will apply policy files changees in policies/** ([see pattern syntax](https://github.com/isaacs/node-glob#glob-primer)) directory to Azure Policy.
@@ -105,9 +105,9 @@ jobs:
       uses: azure/manage-azure-policy@v0
       with:      
         paths:  |                
-          policies/**  # path to directory where policy files were downloaded in runner
+          policies/**
         assignments:  |
-          assign.*_testRG_*.json # Apply only assignment files that match this pattern
+          assign.*_testRG_*.json
         
 ```
 The above workflow will apply policy files changes only in policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
