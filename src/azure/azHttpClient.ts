@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
-import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
+import { PolicyDetails, PolicyRequest, RoleRequest, PolicyResult } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
@@ -94,8 +94,12 @@ export class AzHttpClient {
     return this.upsertPolicies(policyRequests);
   }
 
-  async upsertPolicyAssignments(policyRequests: PolicyRequest[]): Promise<any[]> {
-    return this.upsertPolicies(policyRequests);
+  async upsertPolicyAssignments(policyRequests: PolicyRequest[], roleAssignmentResults: PolicyResult[]): Promise<any[]> {
+    const assignmentResponses = await  this.upsertPolicies(policyRequests);
+
+    // 
+
+    return assignmentResponses
   }
 
   /**
