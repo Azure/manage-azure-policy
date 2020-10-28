@@ -172,7 +172,7 @@ function filterIdentityAssignments(assignmentRequests: PolicyRequest[], assignme
   if (isCreateOperation(assignmentRequest) && assignmentResponse.identity && assignmentResponse.identity.principalId) {
     // We will add path in assignment as it is required later.
     assignmentResponse.path = assignmentRequest.path;
-    filteredAssignments.push(assignmentResponses);
+    filteredAssignments.push(assignmentResponse);
   }
  });
 
