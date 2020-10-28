@@ -1,11 +1,11 @@
 import * as path from 'path';
 import * as core from '@actions/core';
+import { StatusCodes } from "../utils/httpClient";
 import { AzHttpClient } from './azHttpClient';
-import { StatusCodes, sleepFor } from "../utils/httpClient";
 import { getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog, populatePropertyFromJsonFile } from '../utils/utilities';
-import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths } from '../inputProcessing/pathHelper';
+import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths, getAllAssignmentPathForDefinition } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -117,6 +117,13 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   const [definitionRequests, initiativeRequests, assignmentRequests] = dividePolicyRequests(policyRequests);
 
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
+
+  // In case we have force update
+  // We will also need to remove asignments 
+  if (Inputs.forceUpdate) {
+    await handleForceUpdate(definitionRequests, definitionResponses, assignmentRequests);
+  }
+
   policyResults.push(...getPolicyResults(definitionRequests, definitionResponses, FRIENDLY_DEFINITION_TYPE));
 
   const initiativeResponses = await azHttpClient.upsertPolicyInitiatives(initiativeRequests);
@@ -129,6 +136,63 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   await assignRoles(assignmentRequests, assignmentResponses, policyResults);
 
   return Promise.resolve(policyResults);
+}
+
+async function handleForceUpdate(definitionRequests: PolicyRequest[], policyResponses: any[], assignmentRequests: PolicyRequest[]) {
+  let failedRequests: PolicyRequest[] = [];
+
+  definitionRequests.forEach((policyRequest, index) => {
+    const policyResponse = policyResponses[index];
+    // We will only consider force update when policy operation is UPDATE and response status code is 400.
+    if (policyRequest.operation == POLICY_OPERATION_UPDATE && policyResponse.httpStatusCode == StatusCodes.BAD_REQUEST) {
+      failedRequests.push(policyRequest);
+    }
+  });
+
+  if (failedRequests.length > 0) {
+    // Get all assignments from azure
+    let allDefinitionAssignments: any[] = [];
+    try {
+      const azHttpClient = new AzHttpClient();
+      await azHttpClient.initialize();
+
+      const policyDefinitionIds = failedRequests.map(request => request.policy.id);
+      const responses = await azHttpClient.getAllAssignments(policyDefinitionIds);
+
+      // Check if all request are successful
+      responses.forEach(response => {
+        if (response.httpStatusCode != StatusCodes.OK) {
+          allDefinitionAssignments.push(response.content.value);
+        }
+        else {
+          const message = response.content.error ? response.content.error.message : 'Error while getting assignments';
+          throw Error(message);
+        }
+      });
+    }
+    catch (error) {
+      prettyDebugLog(`An error occurred while getting assignments from Azure. Error : ${error}`);
+    }
+
+    // Check if all assignments are present in repo
+    checkAssignmentsExists(failedRequests, allDefinitionAssignments);
+  }
+  else {
+    prettyDebugLog(`No definition needs to be force updated`);
+  }
+}
+
+function checkAssignmentsExists(definitionRequests: PolicyRequest[], allDefinitionAssignments: any[]): boolean {
+  let allAssignmentsArePresent: boolean = true;
+
+  definitionRequests.forEach((definitionRequest, index) => {
+    let allRepoAssignments = getAllAssignmentPathForDefinition(definitionRequest.path);
+    let assignmentsInService = allDefinitionAssignments[index];
+
+  });
+
+
+  return allAssignmentsArePresent;
 }
 
 function dividePolicyRequests(policyRequests: PolicyRequest[]) {
@@ -345,6 +409,7 @@ function getPolicyAssignment(assignmentPath: string): any {
 
 function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
   let policyResults: PolicyResult[] = [];
+  policyResponses = policyResponses.map(response => response.content);
 
   policyRequests.forEach((policyRequest, index) => {
     const isCreate: boolean = isCreateOperation(policyRequest);

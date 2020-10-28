@@ -5,6 +5,7 @@ import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
+const DEFINITION_SCOPE_SEPARATOR = "/providers/Microsoft.Authorization/policyDefinitions";
 
 interface BatchRequest {
   name: string,
@@ -28,6 +29,31 @@ export class AzHttpClient {
 
   async initialize() {
     this.token = await getAccessToken();
+  }
+
+  /**
+   * Gets all assignments of the provided policydefinition ids.
+   * 
+   * @param policyDefinitionIds : PolicyDefinition Ids
+   */
+  async getAllAssignments(policyDefinitionIds: string[]): Promise<BatchResponse[]> {
+    let batchRequests: BatchRequest[] = [];
+
+    policyDefinitionIds.forEach((policyDefinitionId, index) => {
+      const policyBatchCallName = this.getPolicyBatchCallName(index);
+      batchRequests.push({
+        url: this.getAllAssignmentsUrl(policyDefinitionId),
+        name: policyBatchCallName,
+        httpMethod: 'GET',
+        content: undefined
+      });
+    });
+
+    let batchResponses = await this.processBatchRequestSync(batchRequests);
+
+    // We need to return response in the order of request.
+    batchResponses.sort(this.compareBatchResponse);
+    return batchResponses;
   }
 
   /**
@@ -112,7 +138,7 @@ export class AzHttpClient {
       throw Error(`Azure batch response count does not match batch request count`);
     }
 
-    return batchResponses.map(response => response.content);
+    return batchResponses;
   }
 
   /**
@@ -216,6 +242,11 @@ export class AzHttpClient {
         principalId: roleRequest.principalId
       }
     }
+  }
+  
+  private getAllAssignmentsUrl(policyDefinitionId: string): string {
+    const definitionScope = policyDefinitionId.split(DEFINITION_SCOPE_SEPARATOR);
+    return `${this.managementUrl}${definitionScope}/providers/Microsoft.Authorization/policyAssignments?api-version=${this.apiVersion}&$filter=policyDefinitionId eq '${policyDefinitionId}'`;
   }
 
   private compareBatchResponse(response1: BatchResponse, response2: BatchResponse): number {

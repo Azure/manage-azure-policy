@@ -49,6 +49,10 @@ export function getAllPolicyAssignmentPaths(): string[] {
   return assignmentPathsToInclude.filter(p => !assignmentPathsToExclude.includes(p));
 }
 
+export function getAllAssignmentPathForDefinition(definitionFolderPath: string): string[] {
+  return getAssignmentPathsMatchingPatterns([definitionFolderPath], Inputs.assignmentPatterns);
+}
+
 export function isEnforced(assignmentPath: string): boolean {
   core.debug(`Checking if assignment path '${assignmentPath}' is set to enforce`);
   return Inputs.enforcePatterns.some(pattern => {
