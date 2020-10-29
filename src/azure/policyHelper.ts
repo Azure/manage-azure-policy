@@ -122,7 +122,7 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   const initiativeResponses = await azHttpClient.upsertPolicyInitiatives(initiativeRequests);
   policyResults.push(...getPolicyResults(initiativeRequests, initiativeResponses, FRIENDLY_INITIATIVE_TYPE));
 
-  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests, policyResults);
+  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
   policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses, FRIENDLY_ASSIGNMENT_TYPE));
 
   // Now we need to add roles to managed identity for policy remediation.
@@ -260,18 +260,19 @@ async function createRoles(roleRequests: RoleRequest[], roleAssignmentResults: P
 
     responses.forEach((response, index) => {
       let roleRequest = roleRequests[index];
+      let message = `Role Assignment created with id : ${response.content.id}`;
+      let status = POLICY_RESULT_SUCCEEDED;
+
       if (response.httpStatusCode == StatusCodes.CREATED) {
         prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequest.policyAssignmentId}`);
-
-        let message = `Role Assignment created with id : ${response.content.id}`
-        roleAssignmentResults.push(getRoleAssignmentResult(roleRequest.path, roleRequest.policyAssignmentId , roleRequest.policyDefinitionId, POLICY_RESULT_SUCCEEDED, message));
       }
       else {
         prettyLog(`Role assignment could not be created related to assignment id ${roleRequest.policyAssignmentId}. Status : ${response.httpStatusCode}`);
 
-        let message = response.content.error ? response.content.error.message : `Role Assignment could not be created. Status : ${response.httpStatusCode}`;
-        roleAssignmentResults.push(getRoleAssignmentResult(roleRequest.path, roleRequest.policyAssignmentId , roleRequest.policyDefinitionId, POLICY_RESULT_FAILED, message));
+        message = response.content.error ? response.content.error.message : `Role Assignment could not be created. Status : ${response.httpStatusCode}`;
+        status = POLICY_RESULT_FAILED;
       }
+      roleAssignmentResults.push(getRoleAssignmentResult(roleRequest.path, roleRequest.policyAssignmentId , roleRequest.policyDefinitionId, status, message));
     });
   }
   catch (error) {
