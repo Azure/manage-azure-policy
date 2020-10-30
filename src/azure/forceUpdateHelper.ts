@@ -8,7 +8,7 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
     let badRequests: PolicyRequest[] = filterBadRequests(definitionRequests, policyResponses);
   
     if (badRequests.length > 0) {
-      // Get all assignments from azure
+      // Get all assignments from Azure
       let allDefinitionAssignments: any[] = await getAllDefinitionsAssignment(badRequests.map(request => request.policy.id));
   
       // Check if all assignments are present in repo

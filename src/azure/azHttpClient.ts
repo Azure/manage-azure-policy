@@ -243,9 +243,9 @@ export class AzHttpClient {
       }
     }
   }
-  
+
   private getAllAssignmentsUrl(policyDefinitionId: string): string {
-    const definitionScope = policyDefinitionId.split(DEFINITION_SCOPE_SEPARATOR);
+    const definitionScope = policyDefinitionId.split(DEFINITION_SCOPE_SEPARATOR)[0];
     return `${this.managementUrl}${definitionScope}/providers/Microsoft.Authorization/policyAssignments?api-version=${this.apiVersion}&$filter=policyDefinitionId eq '${policyDefinitionId}'`;
   }
 
