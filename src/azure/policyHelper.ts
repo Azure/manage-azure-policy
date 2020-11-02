@@ -580,6 +580,18 @@ function getHashFromMetadata(azurePolicy: any): string {
   return properties.metadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY];
 }
 
+export function createPoliciesUsingIds(policyIds: string[]): any[] {
+  let policies = [];
+
+  policyIds.forEach(policyId => {
+    policies.push({
+      id : policyId
+    });
+  });
+
+  return policies;
+}
+
 /**
  * Helper Method's - END
  */

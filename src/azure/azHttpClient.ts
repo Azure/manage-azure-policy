@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
-import { PolicyDetails, PolicyRequest, RoleRequest } from './policyHelper'
+import { PolicyDetails, PolicyRequest, RoleRequest, createPoliciesUsingIds } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
 
 const SYNC_BATCH_CALL_SIZE = 20;
@@ -75,13 +75,7 @@ export class AzHttpClient {
   }
 
   async getPolicyDefintions(policyIds: string[]):Promise<any[]> {
-    let policies = [];
-
-    policyIds.forEach(policyId => {
-      policies.push({
-        id : policyId
-      });
-    });
+    const policies = createPoliciesUsingIds(policyIds);
 
     const batchResponses = await this.getBatchResponse(policies, 'GET');
     if (policyIds.length != batchResponses.length) {
@@ -122,6 +116,25 @@ export class AzHttpClient {
 
   async upsertPolicyAssignments(policyRequests: PolicyRequest[]): Promise<any[]> {
     return this.upsertPolicies(policyRequests);
+  }
+
+  async deletePolicyDefinitions(policyDefinitionIds: string[]): Promise<any[]> {
+    return this.deletePolicies(policyDefinitionIds);
+  }
+
+  async deletePolicyAssignments(policyAssignmentIds: string[]): Promise<any[]> {
+    return this.deletePolicies(policyAssignmentIds);
+  }
+
+  private async deletePolicies(policyIds: string[]): Promise<any[]> {
+    const policies = createPoliciesUsingIds(policyIds);
+
+    const batchResponses = await this.getBatchResponse(policies, 'DELETE');
+    if (policyIds.length != batchResponses.length) {
+      throw Error(`Azure batch response count does not match batch request count`);
+    }
+
+    return batchResponses;
   }
 
   /**
