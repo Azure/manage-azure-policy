@@ -117,12 +117,14 @@ function createDuplicateRequests(policies: any[]): PolicyRequest[] {
   let policyRequests: PolicyRequest[] = [];
 
   policies.forEach(policy => {
-    appendDuplicateSuffix(policy);
+    // Clone the policy object
+    let policyClone = JSON.parse(JSON.stringify(policy))
+    appendDuplicateSuffix(policyClone);
 
     policyRequests.push({
       path: "NA",
       operation: POLICY_OPERATION_CREATE,
-      policy: policy
+      policy: policyClone
     });
   });
 
@@ -130,12 +132,14 @@ function createDuplicateRequests(policies: any[]): PolicyRequest[] {
 }
 
 async function createDuplicateDefinitions(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
+  prettyDebugLog(`Creating Duplicate definitions`);
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(policyRequests);
 
   // TODO : Check response for failure, throw in case of failure
 }
 
 async function createDuplicateAssignments(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
+  prettyDebugLog(`Creating Duplicate assignments`);
   const assignmentResponses = await azHttpClient.upsertPolicyAssignments(policyRequests);
 
   // TODO : Check response for failure, throw in case of failure
@@ -152,12 +156,15 @@ function appendDuplicateSuffix(policy: any) {
 }
 
 async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignments: any[], azHttpClient: AzHttpClient) {
+  prettyDebugLog(`Deleting Assignments`);
+
   // Delete assignments before definitions
   let allAssignmentIds: string[] = policyAssignments.map(assignment => assignment.id);
   const assignmentDeleteResponse = await azHttpClient.deletePolicyAssignments(allAssignmentIds);
 
   // TODO : verify response.
 
+  prettyDebugLog(`Deleting Definitions`);
   const definitionsDeleteResponse = await azHttpClient.deletePolicyDefinitions(policyDefinitionIds);
 
   // TODO verify response.
