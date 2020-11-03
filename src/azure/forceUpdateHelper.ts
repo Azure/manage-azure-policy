@@ -1,15 +1,15 @@
 import { StatusCodes } from "../utils/httpClient";
-import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, getPolicyAssignment, getPolicyAssignments  } from './policyHelper'
+import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, getPolicyAssignment, getPolicyAssignments, getPolicyResults, DEFINITION_TYPE, ASSIGNMENT_TYPE  } from './policyHelper'
 import { prettyDebugLog, prettyLog } from '../utils/utilities'
 import { getAllAssignmentInPaths } from '../inputProcessing/pathHelper';
 import { AzHttpClient } from './azHttpClient';
-import { request } from "http";
-import { assignments } from "../inputProcessing/inputs";
 
+export const POLICY_OPERATION_FORCE_UPDATE = "FORCE_UPDATE";
+export const POLICY_OPERATION_FORCE_CREATE = "FORCE_CREATE";
 const ID_DUPLICATE_SUFFIX = "_84WCDn7pF0KY5Werq3iPqA"; // Short GUID
 const DISPLAY_NAME_DUPLICATE_SUFFIX = " - Duplicate";
 
-export async function handleForceUpdate(definitionRequests: PolicyRequest[], policyResponses: any[], assignmentRequests: PolicyRequest[]) {
+export async function handleForceUpdate(definitionRequests: PolicyRequest[], policyResponses: any[], assignmentRequests: PolicyRequest[], policyResults: PolicyResult[]) {
   let badRequests: PolicyRequest[] = filterBadRequests(definitionRequests, policyResponses);
 
   if (badRequests.length > 0) {
@@ -35,10 +35,19 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
       // TODO : In case deletion fails : we need to recover all policies which were deleted and delete duplicate ones.
 
       // Create policies again
-      await createOriginalPolicies(badRequests, azHttpClient);
+      const [originalDefinitionResponses, originalAssignmentRequests, originalAssignmentResponses] = await createOriginalPolicies(badRequests, azHttpClient);
 
       // Delete duplicate policies
       await deleteDuplicatePolicies(duplicateDefinitions, duplicateAssignments, azHttpClient);
+
+      // We are done now. Need to avoid duplicate Updation so we will remove entries from assignmentRequests.
+      removeAssignmentRequests(assignmentRequests, originalAssignmentResponses);
+
+      // Also update policy definition response for correct logging
+      removePolicyDefinitionRequests(definitionRequests, policyResponses, badRequests);
+
+      // Populate results
+      populateResults(badRequests, originalDefinitionResponses, originalAssignmentRequests, originalAssignmentResponses, policyResults);
     }
     else {
       prettyLog(`Cannot force update as some assignments are missing in code.`);
@@ -72,8 +81,8 @@ function areAllAssignmentInCode(assignmentsInCode: any[], assignmentsInService: 
     return false;
   } 
 
-  const assignmentsInCodeIds: string[] = assignmentsInCode.map(assignment => assignment.id);
-  const assignmentsInServiceIds: string[] = assignmentsInService.map(assignment => assignment.id);
+  const assignmentsInCodeIds: string[] = getPolicyIds(assignmentsInCode);
+  const assignmentsInServiceIds: string[] = getPolicyIds(assignmentsInService);
 
   return assignmentsInServiceIds.every(assignmentId => assignmentsInCodeIds.includes(assignmentId));
 }
@@ -171,7 +180,7 @@ async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignment
   prettyDebugLog(`Force update : Deleting Assignments`);
 
   // Delete assignments before definitions
-  let allAssignmentIds: string[] = policyAssignments.map(assignment => assignment.id);
+  let allAssignmentIds: string[] = getPolicyIds(policyAssignments);
   const assignmentDeleteResponse = await azHttpClient.deletePolicyAssignments(allAssignmentIds);
 
   // TODO : verify response.
@@ -183,8 +192,8 @@ async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignment
 }
 
 async function deleteDuplicatePolicies(duplicateDefinitions: any[], duplicateAssignments: any[], azHttpClient: AzHttpClient) {
-  const duplicateAssignmentIds = duplicateAssignments.map(assignment => assignment.id);
-  const duplicateDefinitionIds = duplicateDefinitions.map(definition => definition.id);
+  const duplicateAssignmentIds = getPolicyIds(duplicateAssignments);
+  const duplicateDefinitionIds = getPolicyIds(duplicateDefinitions);
 
   prettyDebugLog(`Force update : Deleting duplicate assignments`);
   const assignmentDeleteResponse = await azHttpClient.deletePolicyAssignments(duplicateAssignmentIds);
@@ -198,14 +207,16 @@ async function deleteDuplicatePolicies(duplicateDefinitions: any[], duplicateAss
 async function createOriginalPolicies(definitionRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
   // Create definitions
   prettyDebugLog(`Force update : Creating original definitions`);
-  let definitionsResponse = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
+  let definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
   // TODO : Validate response
 
   // Create assignments
   prettyDebugLog(`Force update : Creating original assignments`);
   const assignmentRequests = getAssignmentRequests(definitionRequests);
-  let assignmentsResponse = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
+  let assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
   // TODO : Validate Assignments
+
+  return [definitionResponses, assignmentRequests, assignmentResponses];
 }
 
 function getAssignmentRequests(definitionRequests: PolicyRequest[]): PolicyRequest[] {
@@ -223,4 +234,45 @@ function getAssignmentRequests(definitionRequests: PolicyRequest[]): PolicyReque
   });
 
   return assignmentRequests;
+}
+
+function removeAssignmentRequests(assignmentRequests: PolicyRequest[], assignmentResponses: any[]) {
+  const assignments = assignmentResponses.map(response => response.content)
+  const assignmentIds: string[] = getPolicyIds(assignments);
+  
+  for (let index = assignmentRequests.length - 1; index > 0; index--) {
+    if (assignmentIds.includes(assignmentRequests[index].policy.id)) {
+      assignmentRequests.splice(index, 1);
+    }
+  }
+}
+
+function removePolicyDefinitionRequests(definitionRequests: PolicyRequest[], policyResponses: any[], badRequests: PolicyRequest[]) {
+  const forcedPolicyDefinitionIds = badRequests.map(request => request.policy.id);
+
+  for (let index = definitionRequests.length - 1; index > 0; index--) {
+    if (forcedPolicyDefinitionIds.includes(definitionRequests[index].policy.id)) {
+      definitionRequests.splice(index, 1);
+      policyResponses.splice(index, 1);
+    }
+  }
+}
+
+function getPolicyIds(policies: any[]): string[] {
+  return policies.map(policy => policy.id);
+}
+
+function populateResults(definitionRequests: PolicyRequest[], definitionResponses: any[], assignmentRequests: PolicyRequest[], assignmentResponses: any[], policyResults: PolicyResult[]) {
+  let definitionResults = getPolicyResults(definitionRequests, definitionResponses, DEFINITION_TYPE);
+  let assignmentResults = getPolicyResults(assignmentRequests, assignmentResponses, ASSIGNMENT_TYPE);
+
+  definitionResults.forEach(result => {
+    result.operation = POLICY_OPERATION_FORCE_UPDATE;
+  });
+
+  assignmentResults.forEach(result => {
+    result.operation = POLICY_OPERATION_FORCE_CREATE;
+  });
+
+  policyResults.push(...definitionResults, ...assignmentResults);
 }

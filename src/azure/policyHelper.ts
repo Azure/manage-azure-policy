@@ -121,7 +121,7 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
 
   // In case we have force update
   if (Inputs.forceUpdate) {
-    await handleForceUpdate(definitionRequests, definitionResponses, assignmentRequests);
+    await handleForceUpdate(definitionRequests, definitionResponses, assignmentRequests, policyResults);
   }
 
   policyResults.push(...getPolicyResults(definitionRequests, definitionResponses, FRIENDLY_DEFINITION_TYPE));
@@ -360,7 +360,7 @@ export function getPolicyAssignment(assignmentPath: string): any {
   return assignment;
 }
 
-function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
+export function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
   let policyResults: PolicyResult[] = [];
   policyResponses = policyResponses.map(response => response.content);
 
