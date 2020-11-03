@@ -240,7 +240,7 @@ function removeAssignmentRequests(assignmentRequests: PolicyRequest[], assignmen
   const assignments = assignmentResponses.map(response => response.content)
   const assignmentIds: string[] = getPolicyIds(assignments);
   
-  for (let index = assignmentRequests.length - 1; index > 0; index--) {
+  for (let index = assignmentRequests.length - 1; index >= 0; index--) {
     if (assignmentIds.includes(assignmentRequests[index].policy.id)) {
       assignmentRequests.splice(index, 1);
     }
@@ -250,7 +250,7 @@ function removeAssignmentRequests(assignmentRequests: PolicyRequest[], assignmen
 function removePolicyDefinitionRequests(definitionRequests: PolicyRequest[], policyResponses: any[], badRequests: PolicyRequest[]) {
   const forcedPolicyDefinitionIds = badRequests.map(request => request.policy.id);
 
-  for (let index = definitionRequests.length - 1; index > 0; index--) {
+  for (let index = definitionRequests.length - 1; index >= 0; index--) {
     if (forcedPolicyDefinitionIds.includes(definitionRequests[index].policy.id)) {
       definitionRequests.splice(index, 1);
       policyResponses.splice(index, 1);
