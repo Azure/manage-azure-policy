@@ -28,8 +28,7 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
       let allAssignments: any[] = [].concat(...allDefinitionAssignments);
 
       // Duplicate definitions and assignments in Azure before deletion
-      // TODO : we need to get Ids of all policies which will be deleted later.
-      await createDuplicatePolicies(policyDefinitionIds, allAssignments, azHttpClient);
+      const [duplicateDefinitions, duplicateAssignments] = await createDuplicatePolicies(policyDefinitionIds, allAssignments, azHttpClient);
 
       // Delete policies in Azure
       await deleteOldPolicies(policyDefinitionIds, allAssignments, azHttpClient);
@@ -39,7 +38,7 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
       await createOriginalPolicies(badRequests, azHttpClient);
 
       // Delete duplicate policies
-      
+      await deleteDuplicatePolicies(duplicateDefinitions, duplicateAssignments, azHttpClient);
     }
     else {
       prettyLog(`Cannot force update as some assignments are missing in code.`);
@@ -106,15 +105,17 @@ async function getAllDefinitionsAssignment(policyDefinitionIds: string[], azHttp
   return responses.map(response => response.content.value)
 }
 
-async function createDuplicatePolicies(policyDefinitionIds: string[], policyAssignments: any[], azHttpClient: AzHttpClient) {
+async function createDuplicatePolicies(policyDefinitionIds: string[], policyAssignments: any[], azHttpClient: AzHttpClient): Promise<any[][]> {
   // We need to get existing definitions from Azure.
   let policyDefinitions = await azHttpClient.getPolicyDefintions(policyDefinitionIds);
   
   const duplicateDefinitionRequests = createDuplicateRequests(policyDefinitions);
-  await createDuplicateDefinitions(duplicateDefinitionRequests, azHttpClient);
+  const duplicateDefinitions: any[] = await createDuplicateDefinitions(duplicateDefinitionRequests, azHttpClient);
 
   const duplicateAssignmentRequests = createDuplicateRequests(policyAssignments);
-  await createDuplicateAssignments(duplicateAssignmentRequests, azHttpClient);
+  const duplicateAssignments: any[] = await createDuplicateAssignments(duplicateAssignmentRequests, azHttpClient);
+
+  return [duplicateDefinitions, duplicateAssignments];
 }
 
 function createDuplicateRequests(policies: any[]): PolicyRequest[] {
@@ -135,18 +136,21 @@ function createDuplicateRequests(policies: any[]): PolicyRequest[] {
   return policyRequests;
 }
 
-async function createDuplicateDefinitions(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
-  prettyDebugLog(`Creating Duplicate definitions`);
+async function createDuplicateDefinitions(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient): Promise<any[]> {
+  prettyDebugLog(`Force update : Creating Duplicate definitions`);
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(policyRequests);
 
   // TODO : Check response for failure, throw in case of failure
+
+  return definitionResponses.map(response => response.content);
 }
 
-async function createDuplicateAssignments(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
-  prettyDebugLog(`Creating Duplicate assignments`);
+async function createDuplicateAssignments(policyRequests: PolicyRequest[], azHttpClient: AzHttpClient): Promise<any[]> {
+  prettyDebugLog(`Force update : Creating Duplicate assignments`);
   const assignmentResponses = await azHttpClient.upsertPolicyAssignments(policyRequests);
 
   // TODO : Check response for failure, throw in case of failure
+  return assignmentResponses.map(response => response.content);
 }
 
 function appendDuplicateSuffix(policy: any) {
@@ -164,7 +168,7 @@ function appendDuplicateSuffix(policy: any) {
 }
 
 async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignments: any[], azHttpClient: AzHttpClient) {
-  prettyDebugLog(`Deleting Assignments`);
+  prettyDebugLog(`Force update : Deleting Assignments`);
 
   // Delete assignments before definitions
   let allAssignmentIds: string[] = policyAssignments.map(assignment => assignment.id);
@@ -172,18 +176,33 @@ async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignment
 
   // TODO : verify response.
 
-  prettyDebugLog(`Deleting Definitions`);
+  prettyDebugLog(`Force update : Deleting Definitions`);
   const definitionsDeleteResponse = await azHttpClient.deletePolicyDefinitions(policyDefinitionIds);
 
   // TODO verify response.
 }
 
+async function deleteDuplicatePolicies(duplicateDefinitions: any[], duplicateAssignments: any[], azHttpClient: AzHttpClient) {
+  const duplicateAssignmentIds = duplicateAssignments.map(assignment => assignment.id);
+  const duplicateDefinitionIds = duplicateDefinitions.map(definition => definition.id);
+
+  prettyDebugLog(`Force update : Deleting duplicate assignments`);
+  const assignmentDeleteResponse = await azHttpClient.deletePolicyAssignments(duplicateAssignmentIds);
+  // TODO: verify deletion
+
+  prettyDebugLog(`Force update : Deleting duplicate definitions`);
+  const definitionsDeleteResponse = await azHttpClient.deletePolicyDefinitions(duplicateDefinitionIds);
+  // TODO: verify deletion
+}
+
 async function createOriginalPolicies(definitionRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
   // Create definitions
+  prettyDebugLog(`Force update : Creating original definitions`);
   let definitionsResponse = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
   // TODO : Validate response
 
   // Create assignments
+  prettyDebugLog(`Force update : Creating original assignments`);
   const assignmentRequests = getAssignmentRequests(definitionRequests);
   let assignmentsResponse = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
   // TODO : Validate Assignments
