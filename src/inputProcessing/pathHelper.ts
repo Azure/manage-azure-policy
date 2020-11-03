@@ -49,8 +49,8 @@ export function getAllPolicyAssignmentPaths(): string[] {
   return assignmentPathsToInclude.filter(p => !assignmentPathsToExclude.includes(p));
 }
 
-export function getAllAssignmentPathForDefinition(definitionFolderPath: string): string[] {
-  return getAssignmentPathsMatchingPatterns([definitionFolderPath], Inputs.assignmentPatterns);
+export function getAllAssignmentInPaths(definitionFolderPaths: string[]): string[] {
+  return getAssignmentPathsMatchingPatterns(definitionFolderPaths, Inputs.assignmentPatterns);
 }
 
 export function isEnforced(assignmentPath: string): boolean {

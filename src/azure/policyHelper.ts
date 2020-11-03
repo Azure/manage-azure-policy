@@ -6,7 +6,7 @@ import { handleForceUpdate } from './forceUpdateHelper';
 import { getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog, populatePropertyFromJsonFile } from '../utils/utilities';
-import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths, getAllAssignmentPathForDefinition } from '../inputProcessing/pathHelper';
+import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -341,7 +341,7 @@ export function getPolicyAssignments(assignmentPaths: string[]): any[] {
   return assignments;
 }
 
-function getPolicyAssignment(assignmentPath: string): any {
+export function getPolicyAssignment(assignmentPath: string): any {
   const assignment = getFileJson(assignmentPath);
   validatePolicy(assignment, assignmentPath, FRIENDLY_ASSIGNMENT_TYPE);
 

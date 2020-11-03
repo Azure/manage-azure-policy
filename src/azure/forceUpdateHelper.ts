@@ -1,10 +1,13 @@
 import { StatusCodes } from "../utils/httpClient";
-import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, getPolicyAssignments  } from './policyHelper'
+import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, getPolicyAssignment, getPolicyAssignments  } from './policyHelper'
 import { prettyDebugLog, prettyLog } from '../utils/utilities'
-import { getAllAssignmentPathForDefinition } from '../inputProcessing/pathHelper';
+import { getAllAssignmentInPaths } from '../inputProcessing/pathHelper';
 import { AzHttpClient } from './azHttpClient';
+import { request } from "http";
+import { assignments } from "../inputProcessing/inputs";
 
-const DUPLICATE_SUFFIX = "_84WCDn7pF0KY5Werq3iPqA"; // Short GUID
+const ID_DUPLICATE_SUFFIX = "_84WCDn7pF0KY5Werq3iPqA"; // Short GUID
+const DISPLAY_NAME_DUPLICATE_SUFFIX = " - Duplicate";
 
 export async function handleForceUpdate(definitionRequests: PolicyRequest[], policyResponses: any[], assignmentRequests: PolicyRequest[]) {
   let badRequests: PolicyRequest[] = filterBadRequests(definitionRequests, policyResponses);
@@ -25,16 +28,17 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
       let allAssignments: any[] = [].concat(...allDefinitionAssignments);
 
       // Duplicate definitions and assignments in Azure before deletion
+      // TODO : we need to get Ids of all policies which will be deleted later.
       await createDuplicatePolicies(policyDefinitionIds, allAssignments, azHttpClient);
 
       // Delete policies in Azure
       await deleteOldPolicies(policyDefinitionIds, allAssignments, azHttpClient);
       // TODO : In case deletion fails : we need to recover all policies which were deleted and delete duplicate ones.
 
+      // Create policies again
+      await createOriginalPolicies(badRequests, azHttpClient);
 
-      // Create Updated definition
-
-      // Create New Assignments
+      // Delete duplicate policies
       
     }
     else {
@@ -50,7 +54,7 @@ function checkAssignmentsExists(definitionRequests: PolicyRequest[], allDefiniti
   let allAssignmentsArePresent: boolean = true;
 
   definitionRequests.forEach((definitionRequest, index) => {
-    const assignmentsInCodePath = getAllAssignmentPathForDefinition(definitionRequest.path);
+    const assignmentsInCodePath = getAllAssignmentInPaths([definitionRequest.path]);
     const assignmentsInCode = getPolicyAssignments(assignmentsInCodePath);
     const assignmentsInService = allDefinitionAssignments[index];
 
@@ -146,12 +150,16 @@ async function createDuplicateAssignments(policyRequests: PolicyRequest[], azHtt
 }
 
 function appendDuplicateSuffix(policy: any) {
-  policy.id = `${policy.id}${DUPLICATE_SUFFIX}`;
-  policy.name = `${policy.name}${DUPLICATE_SUFFIX}`;
+  policy.id = `${policy.id}${ID_DUPLICATE_SUFFIX}`;
+  policy.name = `${policy.name}${ID_DUPLICATE_SUFFIX}`;
+
+  if (policy.properties.displayName) {
+    policy.properties.displayName += DISPLAY_NAME_DUPLICATE_SUFFIX;
+  }
 
   // For policy assignment
   if (policy.properties.policyDefinitionId) {
-      policy.properties.policyDefinitionId = `${policy.properties.policyDefinitionId}${DUPLICATE_SUFFIX}`;
+      policy.properties.policyDefinitionId = `${policy.properties.policyDefinitionId}${ID_DUPLICATE_SUFFIX}`;
   }
 }
 
@@ -168,4 +176,32 @@ async function deleteOldPolicies(policyDefinitionIds: string[], policyAssignment
   const definitionsDeleteResponse = await azHttpClient.deletePolicyDefinitions(policyDefinitionIds);
 
   // TODO verify response.
+}
+
+async function createOriginalPolicies(definitionRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
+  // Create definitions
+  let definitionsResponse = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
+  // TODO : Validate response
+
+  // Create assignments
+  const assignmentRequests = getAssignmentRequests(definitionRequests);
+  let assignmentsResponse = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
+  // TODO : Validate Assignments
+}
+
+function getAssignmentRequests(definitionRequests: PolicyRequest[]): PolicyRequest[] {
+  let assignmentRequests: PolicyRequest[] = [];
+
+  const allDefinitionsPath: string[] = definitionRequests.map(request => request.path);
+  const allAssignmentsPath = getAllAssignmentInPaths(allDefinitionsPath);
+
+  allAssignmentsPath.forEach(assignmentPath => {
+    assignmentRequests.push({
+      path: assignmentPath,
+      operation: POLICY_OPERATION_CREATE,
+      policy: getPolicyAssignment(assignmentPath)
+    });
+  });
+
+  return assignmentRequests;
 }
