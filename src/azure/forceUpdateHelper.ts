@@ -124,7 +124,7 @@ async function revertOldPoliciesAndDeleteDuplicates(definitions: any[], assignme
   
   // Old policies are reverted. Now delete duplicate definitions
   const leftoutDuplicatePolicyIds= await deleteAssignmentAndDefinitions(duplicateDefinitions, duplicateAssignments, azHttpClient);
-  
+
   if (leftoutDuplicatePolicyIds.length > 0) {
     console.log(`Could not delete duplicate policies.`);
     // TODO PM: What to do now? Old policies are there and some duplicates are also there.
@@ -275,11 +275,11 @@ async function createPoliciesFromCode(definitionRequests: PolicyRequest[], azHtt
  */
 async function createPolicies(definitionRequests: PolicyRequest[], assignmentRequests: PolicyRequest[], azHttpClient: AzHttpClient, deleteInFailure: boolean = false): Promise<any[][]> {
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
-  validateUpsertResponse(definitionResponses, azHttpClient, deleteInFailure);
+  await validateUpsertResponse(definitionResponses, azHttpClient, deleteInFailure);
 
   let assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
   try {
-    validateUpsertResponse(assignmentResponses, azHttpClient, deleteInFailure);
+    await validateUpsertResponse(assignmentResponses, azHttpClient, deleteInFailure);
   }
   catch (error) {
     if (deleteInFailure) {
