@@ -46,7 +46,7 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
         [repoDefinitionResponses, repoAssignmentRequests, repoAssignmentResponses] = await startForceUpdate(badRequests, definitionsInService, assignmentsInService, azHttpClient);
       }
       catch (error) {
-        prettyLog("ForceUpdate Failed");
+        prettyLog(`ForceUpdate Failed. Error : ${error}`);
         return;
       }
 
