@@ -118,15 +118,7 @@ export class AzHttpClient {
     return this.upsertPolicies(policyRequests);
   }
 
-  async deletePolicyDefinitions(policyDefinitionIds: string[]): Promise<any[]> {
-    return this.deletePolicies(policyDefinitionIds);
-  }
-
-  async deletePolicyAssignments(policyAssignmentIds: string[]): Promise<any[]> {
-    return this.deletePolicies(policyAssignmentIds);
-  }
-
-  private async deletePolicies(policyIds: string[]): Promise<any[]> {
+  async deletePolicies(policyIds: string[]): Promise<any[]> {
     const policies = createPoliciesUsingIds(policyIds);
 
     const batchResponses = await this.getBatchResponse(policies, 'DELETE');
@@ -161,7 +153,7 @@ export class AzHttpClient {
    * @param policies : All policies
    * @param method : method to be used for batch call
    */
-  private async getBatchResponse(policies: any[], method: string): Promise<any[]> {
+  private async getBatchResponse(policies: any[], method: string): Promise<BatchResponse[]> {
     let batchRequests: BatchRequest[] = [];
 
     policies.forEach((policy, index) => {
