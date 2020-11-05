@@ -36,12 +36,13 @@ export async function handleForceUpdate(definitionRequests: PolicyRequest[], pol
 
     // Check if all assignments are present in repo
     if (checkAssignmentsExists(badRequests, allDefinitionAssignments)) {
-      console.log(`All assignments are present. We will proceed with force update.`);
+      console.log(`All assignments are present in code. We will proceed with force update.`);
 
       // Get all assignments in one array
       let assignmentsInService: any[] = [].concat(...allDefinitionAssignments);
       let repoDefinitionResponses: any[], repoAssignmentRequests: any[], repoAssignmentResponses: any[];
 
+      // Start force update.
       try{
         [repoDefinitionResponses, repoAssignmentRequests, repoAssignmentResponses] = await startForceUpdate(badRequests, definitionsInService, assignmentsInService, azHttpClient);
       }
@@ -80,8 +81,16 @@ async function startForceUpdate(badRequests: PolicyRequest[], definitionsInServi
   }
 
   // Delete policies in Azure
-  const leftoutPolicyIdsInService = await deleteAssignmentAndDefinitions(definitionsInService, assignmentsInService, azHttpClient);
-  if (leftoutPolicyIdsInService.length > 0) {
+  let leftoutPolicyIdsInService: string[] = [];
+  let deletionFailed: boolean = false;
+  try {
+    leftoutPolicyIdsInService = await deleteAssignmentAndDefinitions(definitionsInService, assignmentsInService, azHttpClient);
+  }
+  catch (error) {
+    console.log(`Error while deleting policies in Azure. Error : ${error}`);
+    deletionFailed = true;
+  }
+  if (deletionFailed || leftoutPolicyIdsInService.length > 0) {
     console.log(`Deletion of existing policies in Azure failed. Abandoning force update`);
     await revertOldPoliciesAndDeleteDuplicates(definitionsInService, assignmentsInService, duplicateDefinitions, duplicateAssignments, azHttpClient);
     throw Error(`Deletion of existing policies in Azure failed.`);
@@ -101,9 +110,17 @@ async function startForceUpdate(badRequests: PolicyRequest[], definitionsInServi
   }
 
   // Delete duplicate policies
-  const leftoutDuplicatePolicyIds = await deleteAssignmentAndDefinitions(duplicateDefinitions, duplicateAssignments, azHttpClient);
-
-  if (leftoutDuplicatePolicyIds.length > 0) {
+  let leftoutDuplicatePolicyIds: string[] = [];
+  deletionFailed = false;
+  try {
+    leftoutDuplicatePolicyIds = await deleteAssignmentAndDefinitions(duplicateDefinitions, duplicateAssignments, azHttpClient);
+  }
+  catch (error) {
+    console.log(`Error while deleting duplicate policies. Error : ${error}`);
+    deletionFailed = true;
+  }
+    
+  if (deletionFailed || leftoutDuplicatePolicyIds.length > 0) {
     console.log(`Could not delete duplicate policies.`);
     // TODO PM: what to do now? policies are updated but duplicates could not be deleted.
   }
@@ -112,11 +129,12 @@ async function startForceUpdate(badRequests: PolicyRequest[], definitionsInServi
 }
 
 async function revertOldPoliciesAndDeleteDuplicates(definitions: any[], assignments: any[], duplicateDefinitions: any[], duplicateAssignments: any[], azHttpClient: AzHttpClient) {
+  console.log("Reverting to old policies and deleting duplicates.");
   try {
     await upsertOldPolicies(definitions, assignments, azHttpClient);
   }
   catch (error) {
-    console.log(`Could not upsert old policies.`);
+    console.log(`Could not revert to old policies.`);
 
     // TODO PM: What to do now ? we have some of the old policies and all duplicate policies in azure.
     return;
@@ -126,7 +144,7 @@ async function revertOldPoliciesAndDeleteDuplicates(definitions: any[], assignme
   const leftoutDuplicatePolicyIds= await deleteAssignmentAndDefinitions(duplicateDefinitions, duplicateAssignments, azHttpClient);
 
   if (leftoutDuplicatePolicyIds.length > 0) {
-    console.log(`Could not delete duplicate policies.`);
+    console.log(`Reverted to old policies. However could not delete duplicate policies.`);
     // TODO PM: What to do now? Old policies are there and some duplicates are also there.
   }
 }
@@ -147,7 +165,10 @@ function checkAssignmentsExists(definitionRequests: PolicyRequest[], allDefiniti
 
   return allAssignmentsArePresent;
 }
-  
+
+/**
+ * Checks whether all assignments present in service are present in code.
+ */
 function areAllAssignmentInCode(assignmentsInCode: any[], assignmentsInService: any[]): boolean {
   if (assignmentsInCode.length < assignmentsInService.length) {
     return false;
@@ -196,6 +217,9 @@ async function createDuplicatePolicies(policyDefinitions: any[], policyAssignmen
   return [getPoliciesFromResponse(duplicateDefinitionsResponses), getPoliciesFromResponse(duplicateAssignmentsResponses)];
 }
 
+/**
+ * For all policies, creates a clone, appends duplicate suffix and returns policy requests.
+ */
 function createDuplicateRequests(policies: any[]): PolicyRequest[] {
   let policyRequests: PolicyRequest[] = [];
 
@@ -214,6 +238,9 @@ function createDuplicateRequests(policies: any[]): PolicyRequest[] {
   return policyRequests;
 }
 
+/**
+ * Apppends a duplicate guid to id, name. Duplicate prefix is added to displayname as well.
+ */
 function appendDuplicateSuffix(policy: any) {
   policy.id = `${policy.id}${ID_DUPLICATE_SUFFIX}`;
   policy.name = `${policy.name}${ID_DUPLICATE_SUFFIX}`;
@@ -228,8 +255,11 @@ function appendDuplicateSuffix(policy: any) {
   }
 }
 
+/**
+ * Deletes assignments and definitions in Azure.
+ */
 async function deleteAssignmentAndDefinitions(policyDefinitions: any[], policyAssignments: any[], azHttpClient: AzHttpClient): Promise<string[]> {
-  prettyDebugLog(`Force update : Deleting Assignments`);
+  prettyDebugLog(`Force update : Deleting Assignments and Definitions`);
   let leftoutPolicyIds: string[] = [];
 
   // Delete assignments before definitions
@@ -260,6 +290,7 @@ async function upsertOldPolicies(policyDefinitions: any[], policyAssignments: an
 
 /**
  * Creates definition, corresponging assignments which needed force update.
+ * In case of failure, created policies are deleted.
  */
 async function createPoliciesFromCode(definitionRequests: PolicyRequest[], azHttpClient: AzHttpClient) {
   prettyDebugLog(`Force update : Creating policies in code`);
@@ -277,7 +308,7 @@ async function createPolicies(definitionRequests: PolicyRequest[], assignmentReq
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
   await validateUpsertResponse(definitionResponses, azHttpClient, deleteInFailure);
 
-  let assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
+  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
   try {
     await validateUpsertResponse(assignmentResponses, azHttpClient, deleteInFailure);
   }
@@ -336,7 +367,7 @@ function getPolicyRequests(policies: any[]): PolicyRequest[] {
 }
 
 /**
- * For given definition requests, get all assignment requests.
+ * For given definition requests, get all assignment requests from code.
  */
 function getAssignmentRequests(definitionRequests: PolicyRequest[]): PolicyRequest[] {
   let assignmentRequests: PolicyRequest[] = [];
