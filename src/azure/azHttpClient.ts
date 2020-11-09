@@ -1,8 +1,9 @@
 import * as core from '@actions/core';
 import { getAccessToken } from './azAuthentication';
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
-import { PolicyDetails, PolicyRequest, RoleRequest, createPoliciesUsingIds } from './policyHelper'
+import { PolicyDetails, PolicyRequest, PolicyResult, createPoliciesUsingIds } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
+import { RoleRequest, assignRoles } from './roleAssignmentHelper'
 
 const SYNC_BATCH_CALL_SIZE = 20;
 const DEFINITION_SCOPE_SEPARATOR = "/providers/Microsoft.Authorization/policyDefinitions";
@@ -114,8 +115,13 @@ export class AzHttpClient {
     return this.upsertPolicies(policyRequests);
   }
 
-  async upsertPolicyAssignments(policyRequests: PolicyRequest[]): Promise<any[]> {
-    return this.upsertPolicies(policyRequests);
+  async upsertPolicyAssignments(policyRequests: PolicyRequest[], roleAssignmentResults: PolicyResult[]): Promise<any[]> {
+    const assignmentResponses = await this.upsertPolicies(policyRequests);
+
+    // Now we need to add roles to managed identity for policy remediation.
+    await assignRoles(policyRequests, assignmentResponses, roleAssignmentResults);
+
+    return assignmentResponses;
   }
 
   async deletePolicies(policyIds: string[]): Promise<any[]> {
