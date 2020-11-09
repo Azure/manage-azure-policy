@@ -29,7 +29,7 @@ function filterIdentityAssignments(assignmentRequests: PolicyRequest[], assignme
     let filteredAssignments: any[] = [];
 
     assignmentRequests.forEach((assignmentRequest, index) => {
-        let assignmentResponse = assignmentResponses[index];
+        let assignmentResponse = assignmentResponses[index].content;
         // We will assign roles only when assignmnet was created and has identity field has principalId in it.
         if (isCreateOperation(assignmentRequest) && assignmentResponse.identity && assignmentResponse.identity.principalId) {
             // We will add path in assignment as it is required later.
