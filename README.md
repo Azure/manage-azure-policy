@@ -112,13 +112,13 @@ jobs:
 ```
 The above workflow will apply policy files changes only in policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
 
-## Quickstart Video Tutorials:
+# Quickstart Video Tutorials:
 1. [Export Azure Policy resources to GitHub Repository](https://aka.ms/pac-yvideo-export)
 2. [Deploy Azure Policies with GitHub workflows](https://aka.ms/pac-yvideo-rollout-policy)
  
 
 
-## Configure credentials for Azure login action:
+# Configure credentials for Azure login action:
 
 With the Azure login Action, you can perform an Azure login using [Azure service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals). The credentials of Azure Service Principal can be added as [secrets](https://help.github.com/en/articles/virtual-environments-for-github-actions#creating-and-using-secrets-encrypted-variables) in the GitHub repository and then used in the workflow. Follow the below steps to generate credentials and store in github.
 
