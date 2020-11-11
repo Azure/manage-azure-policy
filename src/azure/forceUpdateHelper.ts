@@ -7,9 +7,17 @@ import { AzHttpClient } from './azHttpClient';
 
 export const POLICY_OPERATION_FORCE_UPDATE = "FORCE_UPDATE";
 export const POLICY_OPERATION_FORCE_CREATE = "FORCE_CREATE";
-const ID_DUPLICATE_SUFFIX_1 = "_duplicate";
-const ID_DUPLICATE_SUFFIX_2 = getRandomShortString();
+const ID_DUPLICATE_SUFFIX = `_duplicate_${getRandomShortString()}`;
 const DISPLAY_NAME_DUPLICATE_SUFFIX = " - Duplicate";
+
+/* APPROACH
+1. Get all assignments and definition from Azure. We will need it in case we need to revert later.
+2. For all definitions, check if their assignments are present in the code. If all assignments are not present in code we will abandon force update.
+3. Create duplicate definitions and assignments.
+4. Delete original assignments and definitions from Azure.
+5. Create definitions and assignments from code. In case of any failure we will revert back to original definitions and assignments.
+6. Delete duplicate assignments and definitions.
+*/
 
 export async function handleForceUpdate(definitionRequests: PolicyRequest[], policyResponses: any[], assignmentRequests: PolicyRequest[], policyResults: PolicyResult[]) {
   let badRequests: PolicyRequest[] = filterBadRequests(definitionRequests, policyResponses);
@@ -84,21 +92,21 @@ async function startForceUpdate(badRequests: PolicyRequest[], definitionsInServi
     throw Error(error);
   }
 
-  // Delete assignments in Azure
+  // Delete policies in Azure
   let leftoutPolicyIdsInService: string[] = [];
   let deletionFailed: boolean = false;
-  console.log("Deleting assignments from Azure.");
+  console.log("Deleting Policies from Azure.");
   try {
-    leftoutPolicyIdsInService = await deletePolicies(assignmentsInService, azHttpClient);
+    leftoutPolicyIdsInService = await deleteAssignmentAndDefinitions(definitionsInService, assignmentsInService, azHttpClient);
   }
   catch (error) {
-    console.log(`Error while assignments in Azure. Error : ${error}`);
+    console.log(`Error while deleting policies in Azure. Error : ${error}`);
     deletionFailed = true;
   }
   if (deletionFailed || leftoutPolicyIdsInService.length > 0) {
-    console.error(`Deletion of existing assignments in Azure failed. Recreating policies..`);
+    core.error(`Deletion of existing policies in Azure failed. Recreating policies..`);
     await revertOldPoliciesAndDeleteDuplicates(definitionsInService, assignmentsInService, duplicateDefinitions, duplicateAssignments, azHttpClient);
-    throw Error(`Deletion of existing assignments in Azure failed.`);
+    throw Error(`Deletion of existing policies in Azure failed.`);
   }
 
   // Create fresh policies from repo
@@ -106,10 +114,10 @@ async function startForceUpdate(badRequests: PolicyRequest[], definitionsInServi
   let roleAssignmentResults: PolicyResult[] = [];
 
   try {
-    [repoDefinitionResponses, repoAssignmentRequests, repoAssignmentResponses] = await upsertPoliciesFromCode(badRequests, roleAssignmentResults, azHttpClient);
+    [repoDefinitionResponses, repoAssignmentRequests, repoAssignmentResponses] = await createPoliciesFromCode(badRequests, roleAssignmentResults, azHttpClient);
   }
   catch (error) {
-    console.error(`Error occurred while creating policies from code. Reverting to old policies. Error : ${error}`);
+    core.error(`Error occurred while creating policies from code. Reverting to old policies. Error : ${error}`);
     // Could not create policies from code. Will revert policies in service
     await revertOldPoliciesAndDeleteDuplicates(definitionsInService, assignmentsInService, duplicateDefinitions, duplicateAssignments, azHttpClient);
     throw Error(error);
@@ -128,7 +136,7 @@ async function revertOldPoliciesAndDeleteDuplicates(definitions: any[], assignme
     await upsertOldPolicies(definitions, assignments, roleAssignmentResults, azHttpClient);
   }
   catch (error) {
-    console.error(`Could not revert to old policies.`);
+    core.error(`Could not revert to old policies.`);
     return;
   }
   
@@ -248,8 +256,8 @@ function createDuplicateRequests(policies: any[]): PolicyRequest[] {
  * Apppends a duplicate guid to id, name. Duplicate prefix is added to displayname as well.
  */
 function appendDuplicateSuffix(policy: any) {
-  policy.id = `${policy.id}${ID_DUPLICATE_SUFFIX_1}${ID_DUPLICATE_SUFFIX_2}`;
-  policy.name = `${policy.name}${ID_DUPLICATE_SUFFIX_1}${ID_DUPLICATE_SUFFIX_2}`;
+  policy.id = `${policy.id}${ID_DUPLICATE_SUFFIX}`;
+  policy.name = `${policy.name}${ID_DUPLICATE_SUFFIX}`;
 
   if (policy.properties.displayName) {
     policy.properties.displayName += DISPLAY_NAME_DUPLICATE_SUFFIX;
@@ -257,7 +265,7 @@ function appendDuplicateSuffix(policy: any) {
 
   // For policy assignment
   if (policy.properties.policyDefinitionId) {
-      policy.properties.policyDefinitionId = `${policy.properties.policyDefinitionId}${ID_DUPLICATE_SUFFIX_1}${ID_DUPLICATE_SUFFIX_2}`;
+      policy.properties.policyDefinitionId = `${policy.properties.policyDefinitionId}${ID_DUPLICATE_SUFFIX}`;
   }
 }
 
@@ -305,18 +313,13 @@ async function upsertOldPolicies(policyDefinitions: any[], policyAssignments: an
 }
 
 /**
- * Updates definition and creates corresponging assignments which needed force update.
- * In case of failure, assignments are deleted.
+ * Creates definition, corresponging assignments which needed force update.
+ * In case of failure, created policies are deleted.
  */
-async function upsertPoliciesFromCode(definitionRequests: PolicyRequest[], roleAssignmentResults: PolicyResult[], azHttpClient: AzHttpClient) {
-  console.log(`Create/Update policies from code.`);
+async function createPoliciesFromCode(definitionRequests: PolicyRequest[], roleAssignmentResults: PolicyResult[], azHttpClient: AzHttpClient) {
+  console.log(`Creating policies from code.`);
   const assignmentRequests = getAssignmentRequests(definitionRequests);
-  
-  const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
-  await validateUpsertResponse(definitionResponses, azHttpClient, false);
-
-  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests, roleAssignmentResults);
-  await validateUpsertResponse(assignmentResponses, azHttpClient, true);
+  const [definitionResponses, assignmentResponses] = await createPolicies(definitionRequests, assignmentRequests, roleAssignmentResults, azHttpClient, true);
 
   return [definitionResponses, assignmentRequests, assignmentResponses];
 }
