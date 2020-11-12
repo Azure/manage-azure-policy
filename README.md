@@ -92,11 +92,11 @@ jobs:
   apply-azure-policy:    
     runs-on: ubuntu-latest
     steps:
-    # Azure Login       
+    # Azure Login
     - name: Login to Azure
       uses: azure/login@v1
       with:
-        creds: ${{secrets.AZURE_CREDENTIALS}}  
+        creds: ${{secrets.AZURE_CREDENTIALS}}
 
     - name: Checkout
       uses: actions/checkout@v2 
@@ -112,6 +112,40 @@ jobs:
 ```
 The above workflow will apply policy files changes only in policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
 
+
+### Sample workflow to apply policies at Management Group scope
+
+```yaml
+# File: .github/workflows/workflow.yml
+
+on: push
+
+jobs:
+  apply-azure-policy:    
+    runs-on: ubuntu-latest
+    steps:
+    # Azure Login at management group scope requires allow-no-subscriptions to be set to true
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{secrets.AZURE_CREDENTIALS}}
+        allow-no-subscriptions: true
+
+    - name: Checkout
+      uses: actions/checkout@v2 
+
+    - name: Create or Update Azure Policies
+      uses: azure/manage-azure-policy@v0
+      with:      
+        paths:  |                
+          policies/**
+        
+```
+For deploying policies or initiatives at a management group level, the azure login action should have input `allow-no-subscriptions` set to true.
+
+
+
+
 # Quickstart Video Tutorials:
 1. [Export Azure Policy resources to GitHub Repository](https://aka.ms/pac-yvideo-export)
 2. [Deploy Azure Policies with GitHub workflows](https://aka.ms/pac-yvideo-rollout-policy)
@@ -126,7 +160,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   * Prerequisite: You should have installed Azure cli on your local machine to run the command or use the cloudshell in the Azure portal. To install Azure cli, follow [Install Azure Cli](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest). To use cloudshell, follow [CloudShell Quickstart](https://docs.microsoft.com/en-us/azure/cloud-shell/quickstart). After you have one of the above ready, follow these steps: 
   
   
-  * Run the below Azure cli command and copy the output JSON object to your clipboard.
+  * To create service principal that has access over subscription scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
 
 ```bash  
   
@@ -147,9 +181,43 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
+  *  Alternatively,  to create service principal that has access over atleast one management group scope, run the below Azure CLI command.
+
+```bash  
+  
+   az ad sp create-for-rbac --name "myApp" --role "Resource Policy Contributor"  \
+                            --scopes  /providers/Microsoft.Management/managementGroups/{management-group-id} \
+
+                            
+  # Replace {management-group-name} with the management group identifier
+  
+  # The command should output a JSON object similar to this:
+
+  {
+    "appId": "<GUID>",
+    "displayName": "<display-name>",
+    "name": "<url>",
+    "password": "<GUID>",
+    "tenant": "<GUID>"
+  }
+  
+  # copy the GUID values for appId, password and tenant from above JSON and replace them in the following JSON. Once replaced, copy the JSON to clipboard
+   
+  {
+    "clientId": "<appId>",
+    "clientSecret": "<password>",  
+    "tenantId": "<tenant>"
+  }
+  
+  
+  
+```
+
   * Define a 'New secret' under your GitHub repository settings -> 'Secrets' menu. Lets name it 'AZURE_CREDENTIALS'.
   * Paste the contents of the clipboard as the value of  the above secret variable.
-  * Use the secret variable in the Azure Login Action(Refer to the examples above)
+  * Use the secret variable in the Azure Login Action(Refer the End-to-End Sample Workflows section )
+
+
 
 
 If needed, you can modify the Azure CLI command to further reduce the scope for which permissions are provided. Here is the command that gives contributor access to only a resource group.
