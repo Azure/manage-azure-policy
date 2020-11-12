@@ -181,7 +181,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
-  *  Alternatively,  to create SPN that has access over management group scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
+  *  Alternatively,  to create SPN that has access over management group scope, run the below Azure CLI command.
 
 ```bash  
   
@@ -200,6 +200,16 @@ With the Azure login Action, you can perform an Azure login using [Azure service
     "password": "<GUID>",
     "tenant": "<GUID>"
   }
+  
+  # copy the GUID values for appId, password and tentant from above JSON and replace them in the following JSON. Once replaced, copy the JSON to clipboard
+   
+  {
+    "clientId": "<appId>",
+    "clientSecret": "<password>",  
+    "tenantId": "<tenant>"
+  }
+  
+  
   
 ```
 
