@@ -160,7 +160,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   * Prerequisite: You should have installed Azure cli on your local machine to run the command or use the cloudshell in the Azure portal. To install Azure cli, follow [Install Azure Cli](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest). To use cloudshell, follow [CloudShell Quickstart](https://docs.microsoft.com/en-us/azure/cloud-shell/quickstart). After you have one of the above ready, follow these steps: 
   
   
-  * To create SPN that has access over subscription scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
+  * To create service principal that has access over subscription scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
 
 ```bash  
   
@@ -181,7 +181,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
-  *  Alternatively,  to create SPN that has access over management group scope, run the below Azure CLI command.
+  *  Alternatively,  to create service principal that has access over management group scope, run the below Azure CLI command.
 
 ```bash  
   
