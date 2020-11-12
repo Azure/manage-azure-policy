@@ -92,11 +92,11 @@ jobs:
   apply-azure-policy:    
     runs-on: ubuntu-latest
     steps:
-    # Azure Login       
+    # Azure Login
     - name: Login to Azure
       uses: azure/login@v1
       with:
-        creds: ${{secrets.AZURE_CREDENTIALS}}  
+        creds: ${{secrets.AZURE_CREDENTIALS}}
 
     - name: Checkout
       uses: actions/checkout@v2 
@@ -111,6 +111,40 @@ jobs:
         
 ```
 The above workflow will apply policy files changes only in policies/** directory. For each directory, the action will first apply the definition and then assignments that have 'testRG' in their filename. This assignment field is especially useful for risk mitigation scenarios, where you first want to apply assignments corresponding to a specific environment like 'test'. 
+
+
+### Sample workflow to apply policies at Management Group scope
+
+```yaml
+# File: .github/workflows/workflow.yml
+
+on: push
+
+jobs:
+  apply-azure-policy:    
+    runs-on: ubuntu-latest
+    steps:
+    # Azure Login at management group scope requires allow-no-subscriptions to be set to true
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{secrets.AZURE_CREDENTIALS}}
+        allow-no-subscriptions: true
+
+    - name: Checkout
+      uses: actions/checkout@v2 
+
+    - name: Create or Update Azure Policies
+      uses: azure/manage-azure-policy@v0
+      with:      
+        paths:  |                
+          policies/**
+        
+```
+For deploying policies or initiatives at a management group level, the azure login action should have input `allow-no-subscriptions` set to true.
+
+
+
 
 # Quickstart Video Tutorials:
 1. [Export Azure Policy resources to GitHub Repository](https://aka.ms/pac-yvideo-export)
@@ -147,7 +181,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
-  *  To create SPN that has access over management group scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
+  *  Alternatively,  to create SPN that has access over management group scope, run the below Azure CLI command and copy the output JSON object to your clipboard.
 
 ```bash  
   
