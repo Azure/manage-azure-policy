@@ -126,7 +126,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   * Prerequisite: You should have installed Azure cli on your local machine to run the command or use the cloudshell in the Azure portal. To install Azure cli, follow [Install Azure Cli](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest). To use cloudshell, follow [CloudShell Quickstart](https://docs.microsoft.com/en-us/azure/cloud-shell/quickstart). After you have one of the above ready, follow these steps: 
   
   
-  * Run the below Azure cli command and copy the output JSON object to your clipboard.
+  * Run the below Azure CLI command and copy the output JSON object to your clipboard.
 
 ```bash  
   
@@ -150,6 +150,30 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   * Define a 'New secret' under your GitHub repository settings -> 'Secrets' menu. Lets name it 'AZURE_CREDENTIALS'.
   * Paste the contents of the clipboard as the value of  the above secret variable.
   * Use the secret variable in the Azure Login Action(Refer to the examples above)
+
+
+If you want the permission to be provided at a management group scope, run the following  Azure CLI command:
+
+```bash  
+  
+   az ad sp create-for-rbac --name "myApp" --role "Resource Policy Contributor"  \
+                            --scopes  /providers/Microsoft.Management/managementGroups/{management-group-id} \
+
+                            
+  # Replace {management-group-name} with the management group identifier
+  
+  # The command should output a JSON object similar to this:
+
+  {
+    "appId": "<GUID>",
+    "displayName": "<display-name>",
+    "name": "<url>",
+    "password": "<GUID>",
+    "tenant": "<GUID>"
+  }
+  
+```
+
 
 
 If needed, you can modify the Azure CLI command to further reduce the scope for which permissions are provided. Here is the command that gives contributor access to only a resource group.
