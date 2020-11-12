@@ -181,7 +181,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
-  *  Alternatively,  to create service principal that has access over management group scope, run the below Azure CLI command.
+  *  Alternatively,  to create service principal that has access over atleast 1 management group scope, run the below Azure CLI command.
 
 ```bash  
   
@@ -201,7 +201,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
     "tenant": "<GUID>"
   }
   
-  # copy the GUID values for appId, password and tentant from above JSON and replace them in the following JSON. Once replaced, copy the JSON to clipboard
+  # copy the GUID values for appId, password and tenant from above JSON and replace them in the following JSON. Once replaced, copy the JSON to clipboard
    
   {
     "clientId": "<appId>",
