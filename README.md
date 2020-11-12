@@ -181,7 +181,7 @@ With the Azure login Action, you can perform an Azure login using [Azure service
   }
   
 ```
-  *  Alternatively,  to create service principal that has access over atleast 1 management group scope, run the below Azure CLI command.
+  *  Alternatively,  to create service principal that has access over atleast one management group scope, run the below Azure CLI command.
 
 ```bash  
   
