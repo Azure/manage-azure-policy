@@ -1,13 +1,12 @@
 import * as path from 'path';
 import * as core from '@actions/core';
 import { AzHttpClient } from './azHttpClient';
-import { StatusCodes, sleepFor } from "../utils/httpClient";
+import { handleForceUpdate } from './forceUpdateHelper';
 import { getFileJson } from '../utils/fileHelper';
 import { getObjectHash } from '../utils/hashUtils';
 import { getWorkflowRunUrl, prettyLog, prettyDebugLog, populatePropertyFromJsonFile } from '../utils/utilities';
 import { isEnforced, isNonEnforced, getAllPolicyAssignmentPaths, getAllPolicyDefinitionPaths, getAllInitiativesPaths } from '../inputProcessing/pathHelper';
 import * as Inputs from '../inputProcessing/inputs';
-import { v4 as uuidv4 } from 'uuid';
 
 export const DEFINITION_TYPE = "Microsoft.Authorization/policyDefinitions";
 export const INITIATIVE_TYPE = "Microsoft.Authorization/policySetDefinitions";
@@ -67,16 +66,6 @@ export interface PolicyMetadata {
   filepath: string;
 }
 
-export interface RoleRequest {
-  scope: string;
-  roleAssignmentId: string;
-  roleDefinitionId: string;
-  principalId: string;
-  policyAssignmentId: string;
-  policyDefinitionId: string;
-  path: string;
-}
-
 export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
   let policyRequests: PolicyRequest[] = [];
 
@@ -117,16 +106,19 @@ export async function createUpdatePolicies(policyRequests: PolicyRequest[]): Pro
   const [definitionRequests, initiativeRequests, assignmentRequests] = dividePolicyRequests(policyRequests);
 
   const definitionResponses = await azHttpClient.upsertPolicyDefinitions(definitionRequests);
+
+  // In case we have force update
+  if (Inputs.forceUpdate) {
+    await handleForceUpdate(definitionRequests, definitionResponses, assignmentRequests, policyResults);
+  }
+
   policyResults.push(...getPolicyResults(definitionRequests, definitionResponses, FRIENDLY_DEFINITION_TYPE));
 
   const initiativeResponses = await azHttpClient.upsertPolicyInitiatives(initiativeRequests);
   policyResults.push(...getPolicyResults(initiativeRequests, initiativeResponses, FRIENDLY_INITIATIVE_TYPE));
 
-  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests);
+  const assignmentResponses = await azHttpClient.upsertPolicyAssignments(assignmentRequests, policyResults);
   policyResults.push(...getPolicyResults(assignmentRequests, assignmentResponses, FRIENDLY_ASSIGNMENT_TYPE));
-
-  // Now we need to add roles to managed identity for policy remediation.
-  await assignRoles(assignmentRequests, assignmentResponses, policyResults);
 
   return Promise.resolve(policyResults);
 }
@@ -153,145 +145,6 @@ function dividePolicyRequests(policyRequests: PolicyRequest[]) {
   });
   
   return [definitionRequests, initiativeRequests, assignmentRequests];
-}
-
-async function assignRoles(assignmentRequests: PolicyRequest[], assignmentResponses: any[], roleAssignmentResults: PolicyResult[]) {
-  let filteredAssignments = filterIdentityAssignments(assignmentRequests, assignmentResponses);
-  let allRoleDefinitions = await paresRoleDefinitions(filteredAssignments, roleAssignmentResults);
-  let roleRequests: RoleRequest[] = getRoleRequests(filteredAssignments, allRoleDefinitions);
-
-  await createRoles(roleRequests, roleAssignmentResults);
-}
-
-function filterIdentityAssignments(assignmentRequests: PolicyRequest[], assignmentResponses: any[]): any[]{
- let filteredAssignments: any[] = [];
-
- assignmentRequests.forEach((assignmentRequest, index) => {
-  let assignmentResponse = assignmentResponses[index];
-  // We will assign roles only when assignmnet was created and has identity field has principalId in it.
-  if (isCreateOperation(assignmentRequest) && assignmentResponse.identity && assignmentResponse.identity.principalId) {
-    // We will add path in assignment as it is required later.
-    assignmentResponse.path = assignmentRequest.path;
-    filteredAssignments.push(assignmentResponse);
-  }
- });
-
- return filteredAssignments;
-}
-
-async function paresRoleDefinitions(policyAssignments: any[], roleAssignmentResults: PolicyResult[]): Promise<any> {
-  let roleDefinitions = {};
-  const policyDefinitionIds: string[] = policyAssignments.map(assignment => assignment.properties.policyDefinitionId);
-
-  try {
-    const azHttpClient = new AzHttpClient();
-    await azHttpClient.initialize();
-    let policyDefinitions = await azHttpClient.getPolicyDefintions(policyDefinitionIds);
-    policyDefinitions.forEach((definition, index) => {
-      if (definition.error) {
-        let policyAssignment = policyAssignments[index];
-        let message = definition.error.message ? definition.error.message : "Could not get policy definition from Azure";
-        roleAssignmentResults.push(getRoleAssignmentResult(policyAssignment.path, policyAssignment.id, policyAssignment.properties.policyDefinitionId, POLICY_RESULT_FAILED, message));
-      }
-      else {
-        let roleDefinitionIds: string[] = getRoleDefinitionIds(definition);
-        if (roleDefinitionIds && roleDefinitionIds.length > 0) {
-          // We need last part of role definition id 
-          roleDefinitions[definition.id] = roleDefinitionIds.map(roleDefinitionId => roleDefinitionId.split("/").pop());
-        }
-        else {
-          prettyLog(`Could not find role definition ids for adding role assignments to the managed identity. Definition Id : ${definition.id}`);
-        }
-      }
-    });
-  }
-  catch (error) {
-    prettyDebugLog(`An error occurred while getting role requests for missing policy definitions. Error : ${error}`);
-    throw new Error(`An error occurred while getting role requests for missing policy definitions. Error: ${error}`);
-  }
-
-  return roleDefinitions;
-}
-
-function getRoleAssignmentResult(path: string, assignmentId: string, definitionId: string, status: string, message: string): PolicyResult {
-  return {
-    path: path,
-    type: ROLE_ASSIGNMNET_TYPE,
-    operation: POLICY_OPERATION_CREATE,
-    displayName: `Role Assignment for policy policy assignment id : ${assignmentId}`,
-    status: status,
-    message: message,
-    policyDefinitionId: definitionId
-  }
-}
-
-function getRoleRequests(policyAssignments: any[], allRoleDefinitions: any): RoleRequest[] {
-  let roleRequests: RoleRequest[] = [];
-  policyAssignments.forEach(policyAssignment => {
-    let roleDefinitions = allRoleDefinitions[policyAssignment.properties.policyDefinitionId];
-    if (roleDefinitions) {
-      roleDefinitions.forEach(roleId => {
-        roleRequests.push({
-          scope: policyAssignment.properties.scope,
-          roleAssignmentId: uuidv4(),
-          roleDefinitionId: roleId,
-          principalId: policyAssignment.identity.principalId,
-          policyAssignmentId: policyAssignment.id,
-          policyDefinitionId: policyAssignment.properties.policyDefinitionId,
-          path: policyAssignment.path
-        });
-      });
-    }
-  });
-
-  return roleRequests;
-}
-
-async function createRoles(roleRequests: RoleRequest[], roleAssignmentResults: PolicyResult[]) {
-  if (roleRequests.length == 0) {
-    prettyDebugLog(`No role assignments needs to be created`);
-    return;
-  }
-
-  try {
-    const azHttpClient = new AzHttpClient();
-    await azHttpClient.initialize();
-    let responses = await azHttpClient.addRoleAssinments(roleRequests);
-
-    responses.forEach((response, index) => {
-      let roleRequest = roleRequests[index];
-      let message = `Role Assignment created with id : ${response.content.id}`;
-      let status = POLICY_RESULT_SUCCEEDED;
-
-      if (response.httpStatusCode == StatusCodes.CREATED) {
-        prettyDebugLog(`Role assignment created with id ${response.content.id} for assignmentId : ${roleRequest.policyAssignmentId}`);
-      }
-      else {
-        prettyLog(`Role assignment could not be created related to assignment id ${roleRequest.policyAssignmentId}. Status : ${response.httpStatusCode}`);
-
-        message = response.content.error ? response.content.error.message : `Role Assignment could not be created. Status : ${response.httpStatusCode}`;
-        status = POLICY_RESULT_FAILED;
-      }
-      roleAssignmentResults.push(getRoleAssignmentResult(roleRequest.path, roleRequest.policyAssignmentId , roleRequest.policyDefinitionId, status, message));
-    });
-  }
-  catch (error) {
-    prettyLog(`An error occurred while creating role assignments. Error: ${error}`);
-    throw new Error(`An error occurred while creating role assignments. Error: ${error}`);
-  }
-}
-
-function getRoleDefinitionIds(policyDefinition: any): string[] {
-  if ( policyDefinition.properties 
-    && policyDefinition.properties.policyRule 
-    && policyDefinition.properties.policyRule.then 
-    && policyDefinition.properties.policyRule.then.details 
-    && policyDefinition.properties.policyRule.then.details.roleDefinitionIds) 
-    {
-      return policyDefinition.properties.policyRule.then.details.roleDefinitionIds;
-    }
-
-  return undefined;
 }
 
 function getPolicyDefinition(definitionPath: string): any {
@@ -324,7 +177,17 @@ function getPolicyInitiative(initiativePath: string): any {
   return initiative;
 }
 
-function getPolicyAssignment(assignmentPath: string): any {
+export function getPolicyAssignments(assignmentPaths: string[]): any[] {
+  let assignments: any[] = [];
+
+  assignmentPaths.forEach(path => {
+    assignments.push(getPolicyAssignment(path));
+  })
+
+  return assignments;
+}
+
+export function getPolicyAssignment(assignmentPath: string): any {
   const assignment = getFileJson(assignmentPath);
   validatePolicy(assignment, assignmentPath, FRIENDLY_ASSIGNMENT_TYPE);
 
@@ -343,8 +206,9 @@ function getPolicyAssignment(assignmentPath: string): any {
   return assignment;
 }
 
-function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
+export function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[], policyType: string): PolicyResult[] {
   let policyResults: PolicyResult[] = [];
+  policyResponses = policyResponses.map(response => response.content);
 
   policyRequests.forEach((policyRequest, index) => {
     const isCreate: boolean = isCreateOperation(policyRequest);
@@ -380,7 +244,7 @@ function getPolicyResults(policyRequests: PolicyRequest[], policyResponses: any[
   return policyResults;
 }
 
-function isCreateOperation(policyRequest: PolicyRequest): boolean {
+export function isCreateOperation(policyRequest: PolicyRequest): boolean {
   return policyRequest.operation == POLICY_OPERATION_CREATE;
 }
 
@@ -560,6 +424,18 @@ function getHashFromMetadata(azurePolicy: any): string {
     return undefined;
   }
   return properties.metadata[POLICY_METADATA_GITHUB_KEY][POLICY_METADATA_HASH_KEY];
+}
+
+export function createPoliciesUsingIds(policyIds: string[]): any[] {
+  let policies = [];
+
+  policyIds.forEach(policyId => {
+    policies.push({
+      id : policyId
+    });
+  });
+
+  return policies;
 }
 
 /**
