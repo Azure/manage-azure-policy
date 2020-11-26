@@ -1,9 +1,10 @@
 import * as core from '@actions/core';
 import { StatusCodes } from "../utils/httpClient";
-import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, getPolicyAssignment, getPolicyAssignments, getPolicyResults, DEFINITION_TYPE, ASSIGNMENT_TYPE  } from './policyHelper'
+import { POLICY_OPERATION_CREATE, POLICY_OPERATION_UPDATE, PolicyRequest, PolicyResult, getPolicyAssignment, getPolicyAssignments, getPolicyResults, getPolicyRequest, DEFINITION_TYPE, ASSIGNMENT_TYPE  } from './policyHelper'
 import { prettyDebugLog, prettyLog, getRandomShortString } from '../utils/utilities'
 import { getAllAssignmentInPaths } from '../inputProcessing/pathHelper';
 import { AzHttpClient } from './azHttpClient';
+import { getObjectHash } from '../utils/hashUtils';
 
 export const POLICY_OPERATION_FORCE_UPDATE = "FORCE_UPDATE";
 export const POLICY_OPERATION_FORCE_CREATE = "FORCE_CREATE";
@@ -407,11 +408,10 @@ function getAssignmentRequests(definitionRequests: PolicyRequest[]): PolicyReque
   const allAssignmentsPath = getAllAssignmentInPaths(allDefinitionsPath);
 
   allAssignmentsPath.forEach(assignmentPath => {
-    assignmentRequests.push({
-      path: assignmentPath,
-      operation: POLICY_OPERATION_CREATE,
-      policy: getPolicyAssignment(assignmentPath)
-    });
+    let policy = getPolicyAssignment(assignmentPath);
+    let hash = getObjectHash(policy);
+
+    assignmentRequests.push(getPolicyRequest(policy, assignmentPath, hash, POLICY_OPERATION_CREATE));
   });
 
   return assignmentRequests;
