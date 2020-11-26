@@ -75,3 +75,11 @@ export function populatePropertyFromJsonFile(object: any, jsonFilePath: string, 
     }
   }
 }
+
+/**
+ * Returns a short random string of 11 characters
+ * 
+ * */
+export function getRandomShortString(): string {
+  return Math.random().toString(36).slice(-11);
+}
