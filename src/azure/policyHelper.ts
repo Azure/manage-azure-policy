@@ -85,7 +85,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
       else {
         const operationType = getPolicyOperationType(policyDetails, currentHash);
         if (operationType == POLICY_OPERATION_CREATE || operationType == POLICY_OPERATION_UPDATE) {
-          policyRequests.push(getPolicyRequest(policyDetails, currentHash, operationType));
+          policyRequests.push(getPolicyRequest(policyDetails.policyInCode, policyDetails.path, currentHash, operationType));
         }
       }
     }
@@ -344,22 +344,22 @@ function getWorkflowMetadata(policyHash: string, filepath: string): PolicyMetada
   return metadata;
 }
 
-function getPolicyRequest(policyDetails: PolicyDetails, hash: string, operation: string): PolicyRequest {
-  let metadata = getWorkflowMetadata(hash, policyDetails.path);
+export function getPolicyRequest(policy: any, policyPath: string, hash: string, operation: string): PolicyRequest {
+  let metadata = getWorkflowMetadata(hash, policyPath);
 
-  if (!policyDetails.policyInCode.properties) {
-    policyDetails.policyInCode.properties = {};
+  if (!policy.properties) {
+    policy.properties = {};
   }
 
-  if (!policyDetails.policyInCode.properties.metadata) {
-    policyDetails.policyInCode.properties.metadata = {};
+  if (!policy.properties.metadata) {
+    policy.properties.metadata = {};
   }
 
-  policyDetails.policyInCode.properties.metadata[POLICY_METADATA_GITHUB_KEY] = metadata;
+  policy.properties.metadata[POLICY_METADATA_GITHUB_KEY] = metadata;
 
   let policyRequest: PolicyRequest = {
-    policy: policyDetails.policyInCode,
-    path: policyDetails.path,
+    policy: policy,
+    path: policyPath,
     operation: operation
   }
   return policyRequest;
