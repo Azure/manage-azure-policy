@@ -23,6 +23,7 @@
     "object-hash": "^2.0.3",
     "table": "^5.4.6",
     "typed-rest-client": "^1.5.0",
-    "uuid": "^8.3.1"
+    "uuid": "^8.3.1",
+    "azure-actions-webclient": "1.1.0"
   }
 }

@@ -1,8 +1,8 @@
 import * as exec from "@actions/exec";
 import * as io from "@actions/io";
+import { AzureCLIAuthorizer } from 'azure-actions-webclient/Authorizer/AzureCLIAuthorizer';
 
 var azPath: string;
-const resource = "https://management.azure.com/";
 
 export async function getAccessToken(): Promise<string> {
   let accessToken = "";
@@ -15,8 +15,11 @@ export async function getAccessToken(): Promise<string> {
 
 async function getAADToken(): Promise<string> {
   azPath = await io.which("az", true);
+
+  let azureCLIAuthorizer = await AzureCLIAuthorizer.getAuthorizer();
+
   return await getTokenFromAzCLI(
-    "account get-access-token --resource=" + resource
+    "account get-access-token --resource=" + azureCLIAuthorizer.baseUrl
   );
 }
 
