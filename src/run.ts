@@ -2,7 +2,7 @@ import * as core from '@actions/core';
 import * as Inputs from './inputProcessing/inputs';
 import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME, POLICY_RESULT_FAILED, PolicyRequest, PolicyResult, createUpdatePolicies, getAllPolicyRequests } from './azure/policyHelper'
 import { printSummary } from './report/reportGenerator';
-import { setUpUserAgent } from './utils/utilities'
+import { prettyLog, setUpUserAgent } from './utils/utilities'
 
 /**
  * Entry point for Action
@@ -23,6 +23,7 @@ async function run() {
 
   } catch (error) {
     core.setFailed(error.message);
+    prettyLog(`Error : ${error}`);
   } finally {
     //4. Set action outcome
     setResult(policyResults);
