@@ -30,8 +30,11 @@ export class AzHttpClient {
     this.token = await getAccessToken();
 
     let azureCLIAuthorizer = await AzureCLIAuthorizer.getAuthorizer();
-    this.managementUrl = azureCLIAuthorizer.baseUrl;
-    this.batchCallUrl = `${this.managementUrl}batch?api-version=${this.batchApiVersion}`;
+    const baseUrl = azureCLIAuthorizer.baseUrl;
+
+    // Remove trailing '/' from base url.
+    this.managementUrl = baseUrl.replace(/\/$/, ""); 
+    this.batchCallUrl = `${this.managementUrl}/batch?api-version=${this.batchApiVersion}`;
   }
 
   /**
