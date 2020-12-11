@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { getAccessToken } from './azAuthentication';
+import { AzCli } from "./azCli";
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
 import { PolicyDetails, PolicyRequest, PolicyResult, createPoliciesUsingIds } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
@@ -24,12 +24,11 @@ interface BatchResponse {
 }
 
 export class AzHttpClient {
-  constructor() {
-    this.batchCallUrl = `${this.batchManagementUrl}?api-version=${this.batchApiVersion}`;
-  }
 
   async initialize() {
-    this.token = await getAccessToken();
+    this.token = await AzCli.getAccessToken();
+    this.managementUrl = await AzCli.getManagementUrl();
+    this.batchCallUrl = `${this.managementUrl}/batch?api-version=${this.batchApiVersion}`;
   }
 
   /**
@@ -242,7 +241,7 @@ export class AzHttpClient {
   }
 
   private getRoleAssignmentUrl(scope: string, roleAssignmentId: string): string {
-    return `https://management.azure.com${scope}/providers/Microsoft.Authorization/roleAssignments/${roleAssignmentId}?api-version=${this.roleApiVersion}`
+    return `${this.managementUrl}${scope}/providers/Microsoft.Authorization/roleAssignments/${roleAssignmentId}?api-version=${this.roleApiVersion}`
   }
 
   private getRoleAssignmentBody(roleRequest: RoleRequest): any {
@@ -269,8 +268,7 @@ export class AzHttpClient {
   }
 
   private token: string;
-  private managementUrl: string = 'https://management.azure.com';
-  private batchManagementUrl: string = 'https://management.azure.com/batch';
+  private managementUrl: string;
   private apiVersion: string = '2019-09-01';
   private batchApiVersion: string = '2019-09-01';
   private roleApiVersion: string = '2019-04-01-preview';
