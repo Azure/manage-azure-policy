@@ -1,10 +1,9 @@
 import * as core from '@actions/core';
-import { getAccessToken } from './azAuthentication';
+import { AzCli } from "./azCli";
 import { StatusCodes, WebRequest, WebResponse, sendRequest } from "../utils/httpClient";
 import { PolicyDetails, PolicyRequest, PolicyResult, createPoliciesUsingIds } from './policyHelper'
 import { prettyDebugLog, splitArray } from '../utils/utilities'
 import { RoleRequest, assignRoles } from './roleAssignmentHelper'
-import { ManagementUrlHelper } from "./managementUrlHelper";
 
 const SYNC_BATCH_CALL_SIZE = 20;
 const DEFINITION_SCOPE_SEPARATOR = "/providers/Microsoft.Authorization/policyDefinitions";
@@ -27,8 +26,8 @@ interface BatchResponse {
 export class AzHttpClient {
 
   async initialize() {
-    this.token = await getAccessToken();
-    this.managementUrl = await ManagementUrlHelper.getBaseUrl();
+    this.token = await AzCli.getAccessToken();
+    this.managementUrl = await AzCli.getManagementUrl();
     this.batchCallUrl = `${this.managementUrl}/batch?api-version=${this.batchApiVersion}`;
   }
 
