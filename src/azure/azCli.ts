@@ -21,7 +21,7 @@ export class AzCli {
     }
 
     public static async getAccessToken(): Promise<string> {
-        const resource = this.getManagementUrl();
+        const resource = await this.getManagementUrl();
         let accessToken = "";
 
         try {
