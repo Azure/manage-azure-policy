@@ -143,7 +143,7 @@ jobs:
 ```
 For deploying policies or initiatives at a management group level, the azure login action should have input `allow-no-subscriptions` set to true.
 
-
+Manage Azure Policy Action is supported on both 'AzureUSGovernment' or 'AzureChinaCloud'.Login to the respective Azure Cloud before running Manage Azure Policy Action using [Azure Login](https://github.com/Azure/login)
 
 
 # Quickstart Video Tutorials:
