@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as core from '@actions/core';
 import * as Inputs from './inputs';
 import { POLICY_FILE_NAME, POLICY_INITIATIVE_FILE_NAME } from '../azure/policyHelper';
+import { prettyDebugLog } from '../utils/utilities';
 
 /**
   * @returns All the directories that:
@@ -16,7 +17,12 @@ export function getAllPolicyDefinitionPaths(): string[] {
   const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_FILE_NAME);
   core.debug('Looking for policy definition paths to ignore...');
   const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_FILE_NAME);
-  return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
+  const policyPaths = policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
+  const debugMessage = policyPaths.length > 0
+    ? `Found the following policy paths that match the given path filters:\n\n${policyPaths.join('\n')}`
+    : `Found no policies that match the given path filters.`;
+  prettyDebugLog(debugMessage);
+  return policyPaths;
 }
 
 /**
@@ -27,10 +33,15 @@ export function getAllPolicyDefinitionPaths(): string[] {
   */
 export function getAllInitiativesPaths(): string[] {
   core.debug('Looking for policy initiative paths to include...');
-  const policyPathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_INITIATIVE_FILE_NAME);
+  const policyInitiativePathsToInclude = getPolicyPathsMatchingPatterns(Inputs.includePathPatterns, POLICY_INITIATIVE_FILE_NAME);
   core.debug('Looking for policy initiative paths to ignore...');
-  const policyPathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_INITIATIVE_FILE_NAME);
-  return policyPathsToInclude.filter(p => !policyPathsToExclude.includes(p));
+  const policyInitiativePathsToExclude = getPolicyPathsMatchingPatterns(Inputs.excludePathPatterns, POLICY_INITIATIVE_FILE_NAME);
+  const policyInitiativePaths = policyInitiativePathsToInclude.filter(p => !policyInitiativePathsToExclude.includes(p));
+  const debugMessage = policyInitiativePaths.length > 0
+    ? `Found the following policy initiative paths that match the given path filters:\n\n${policyInitiativePaths.join('\n')}`
+    : `Found no policy initiatives that match the given path filters.`;
+  prettyDebugLog(debugMessage);
+  return policyInitiativePaths;
 }
 
 /**
@@ -46,7 +57,12 @@ export function getAllPolicyAssignmentPaths(): string[] {
   const assignmentPathsToInclude = getAssignmentPathsMatchingPatterns(Inputs.includePathPatterns, Inputs.assignmentPatterns);
   core.debug('Looking for policy assignment paths to ignore...');
   const assignmentPathsToExclude = getAssignmentPathsMatchingPatterns(Inputs.excludePathPatterns, Inputs.assignmentPatterns);
-  return assignmentPathsToInclude.filter(p => !assignmentPathsToExclude.includes(p));
+  const assignmentPaths = assignmentPathsToInclude.filter(p => !assignmentPathsToExclude.includes(p));
+  const debugMessage = assignmentPaths.length > 0
+    ? `Found the following policy assignment paths that match the given path filters:\n\n${assignmentPaths.join('\n')}`
+    : `Found no policy assignments that match the given path filters.`;
+  prettyDebugLog(debugMessage);
+  return assignmentPaths;
 }
 
 export function getAllAssignmentInPaths(definitionFolderPaths: string[]): string[] {
