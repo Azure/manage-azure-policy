@@ -69,7 +69,7 @@ export function readInputs() {
   }
 }
 
-function getInputArray(input: string): string[] | undefined {
+export function getInputArray(input: string): string[] | undefined {
   return input ? input.split('\n').map(item => item.trim()) : undefined;
 }
 
@@ -81,7 +81,7 @@ function validateEnforcementMode(): void {
   validateAssignmentLikePatterns(INPUT_ENFORCEMENT_MODE_KEY, enforcementMode);
 }
 
-function validateAssignmentLikePatterns(inputName: string, patterns?: string[]): void {
+export function validateAssignmentLikePatterns(inputName: string, patterns?: string[]): void {
   if (!patterns) {
     return;
   }

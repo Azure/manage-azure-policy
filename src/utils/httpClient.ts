@@ -131,7 +131,7 @@ export function sleepFor(sleepDurationInSeconds: number): Promise<any> {
   });
 }
 
-async function sendRequestInternal(request: WebRequest): Promise<WebResponse> {
+export async function sendRequestInternal(request: WebRequest): Promise<WebResponse> {
   core.debug(util.format("[%s]%s", request.method, request.uri));
   var response: httpClient.HttpClientResponse = await httpCallbackClient.request(
     request.method,
@@ -142,7 +142,7 @@ async function sendRequestInternal(request: WebRequest): Promise<WebResponse> {
   return await toWebResponse(response);
 }
 
-async function toWebResponse(
+export async function toWebResponse(
   response: httpClient.HttpClientResponse
 ): Promise<WebResponse> {
   var res = new WebResponse();
