@@ -2,8 +2,7 @@ name: "Trigger Integration tests"
 on:
   push:
     branches:
-      - main
-      - 'releases/*'
+      - jysin/*
   pull_request:
     branches:
       - main
