@@ -85,11 +85,15 @@ function getPolicyPathsMatchingPatterns(patterns: string[], policyFileName: stri
 
 function getAssignmentPathsMatchingPatterns(patterns: string[], assignmentPatterns: string[]): string[] {
   let matchingAssignmentPaths: string[] = [];
+  console.log(1, patterns);
+  console.log(2, assignmentPatterns);
   patterns.forEach(policyPath => {
     assignmentPatterns.forEach(assignmentPattern => {
       const pattern = path.join(policyPath, assignmentPattern);
       const assignmentPaths = getFilesMatchingPattern(pattern);
+      console.log(3, assignmentPaths);
       core.debug(`Assignment pattern: ${pattern}\n Matching assignment paths: ${assignmentPaths}`);
+      console.log(4, assignmentPaths);
       matchingAssignmentPaths.push(...assignmentPaths);
     });
   });
