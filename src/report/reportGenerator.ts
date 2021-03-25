@@ -65,7 +65,7 @@ function populateRows(groupedResult: any, successRows: any[], errorRows: any[], 
   }
 }
 
-function getTableConfig(widths: number[]): any {
+export function getTableConfig(widths: number[]): any {
   let config: any = {
     columns: {}
   };
@@ -83,7 +83,7 @@ function getTableConfig(widths: number[]): any {
   return config;
 }
 
-function getRowSeparator(widths: number[]): string[] {
+export function getRowSeparator(widths: number[]): string[] {
   let row: string[] = [];
 
   for (const width of widths) {

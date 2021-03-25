@@ -267,7 +267,7 @@ function validatePolicy(policy: any, path: string, type: string): void {
 }
 
 // Returns all policy definitions and assignments.
-async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
+export async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
   let allPolicyDetails: PolicyDetails[] = [];
 
   const definitionPaths = getAllPolicyDefinitionPaths();
@@ -294,7 +294,6 @@ async function getAllPolicyDetails(): Promise<PolicyDetails[]> {
       allPolicyDetails.push(assignmentDetails);
     }
   });
-
   // Fetch policies from service
   const azHttpClient = new AzHttpClient();
   await azHttpClient.initialize();
@@ -328,7 +327,7 @@ function getPolicyDetails(policyPath: string, policyType: string): PolicyDetails
     prettyLog(`Error occured while reading policy in path : ${policyPath}. Error : ${error}`);
     policyDetails = undefined;
   }
-  
+
   return policyDetails;
 }
 
@@ -375,7 +374,7 @@ export function getPolicyRequest(policy: any, policyPath: string, hash: string, 
  * @param policyDetails : Policy Details
  * @param currentHash : Hash of the current policy in GitHub repo
  */
-function getPolicyOperationType(policyDetails: PolicyDetails, currentHash: string): string {
+export function getPolicyOperationType(policyDetails: PolicyDetails, currentHash: string): string {
   const policyInCode = policyDetails.policyInCode;
   const policyInService = policyDetails.policyInService;
 
