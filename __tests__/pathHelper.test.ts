@@ -68,15 +68,13 @@ describe('Testing all functions in pathHelper file', () => {
 				path.join('policies2', 'ignorePolicies', 'assign.three.json'),
 				path.join('policies2', 'somePolicies', 'assign.four.json')
 			];
-			if (pattern == path.join('policies2', 'ignorePolicies', '**', 'assign.*.json')) return [
-				path.join('policies2', 'ignorePolicies', 'assign.three.json')
-			];
 		});
 		jest.spyOn(core, 'debug').mockImplementation();
 
 		expect(pathHelper.getAllPolicyAssignmentPaths()).toMatchObject([
 			path.join('policies1', 'somePolicies', 'assign.one.json'),
 			path.join('policies1', 'assign.two.json'),
+			path.join('policies2', 'ignorePolicies', 'assign.three.json'),
 			path.join('policies2', 'somePolicies', 'assign.four.json'),
 		]);
 	});
