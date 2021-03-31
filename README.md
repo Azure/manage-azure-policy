@@ -1,5 +1,5 @@
 
-# Manage Azure Policy Action
+# Manage Azure Policy Action 
 
 With Manage Azure Policy Action you can now create or update Azure policies from your GitHub Workflows. Since workflows are totally customizable, you can have a complete control over the sequence in which Azure policies are rolled out. Its now even easier to follow safe deployment practices and catch regressions or bugs well before policies are applied on  critical resources. 
 
