@@ -28,5 +28,4 @@ jobs:
            github.event.pull_request.base.ref == 'releases/v0' || steps.extract_branch.outputs.branchname == 'releases/v0' || 
            github.event.pull_request.base.ref == 'main' || steps.extract_branch.outputs.branchname == 'main'
           run: |
-              bash ./IntegrationTests/.github/workflows/InvokeL2RepoDispatchEvent.sh ${{ secrets.L2_REPO_TOKEN }} ${{ github.event.pull_request.head.sha }} ${{ github.repository }} ${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.base.ref }} 
-           
+              bash ./IntegrationTests/.github/workflows/InvokeL2RepoDispatchEvent.sh ${{ secrets.L2_REPO_TOKEN }} ${{ github.event.pull_request.head.sha }} ${{ github.repository }} ${{ github.event.pull_request.number }} ${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.base.ref }} ${{ secrets.L2_REPO_USER }}           
