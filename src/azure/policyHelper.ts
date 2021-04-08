@@ -92,7 +92,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
 
     // There were errors while getting policies. We will not proceed further.
     if (allPolicyDetails.length != policyRequests.length) {
-      throw Error(`Error occurred while fetching policies from Azure.`);
+      return Promise.reject(`Error occurred while fetching policies from Azure.`);
     }
   }
   catch (error) {
