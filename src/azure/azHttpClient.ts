@@ -33,7 +33,7 @@ export class AzHttpClient {
 
   /**
    * Gets all assignments of the provided policydefinition ids.
-   * 
+   *
    * @param policyDefinitionIds : PolicyDefinition Ids
    */
   async getAllAssignments(policyDefinitionIds: string[]): Promise<BatchResponse[]> {
@@ -58,7 +58,7 @@ export class AzHttpClient {
 
   /**
    * For all policies, fetches policy from azure service and populates in the policy details.
-   * 
+   *
    * @param allPolicyDetails : All Policy Details
    */
   async populateServicePolicies(allPolicyDetails: PolicyDetails[]) {
@@ -137,7 +137,7 @@ export class AzHttpClient {
   /**
    * For given policy requests, create/update policy. Response of request is in order of request
    * So response at index i will be for policy request at index i.
-   * 
+   *
    * @param policyRequests : policy requests.
    */
   private async upsertPolicies(policyRequests: PolicyRequest[]): Promise<any[]> {
@@ -154,7 +154,7 @@ export class AzHttpClient {
   /**
    * For given policies, perfom the given method operation and return response in the order of request.
    * So response at index i will be for policy at index i.
-   * 
+   *
    * @param policies : All policies
    * @param method : method to be used for batch call
    */
@@ -163,7 +163,7 @@ export class AzHttpClient {
 
     policies.forEach((policy, index) => {
       const policyBatchCallName = this.getPolicyBatchCallName(index);
-  
+
       batchRequests.push({
         url: this.getResourceUrl(policy.id),
         name: policyBatchCallName,
@@ -269,8 +269,8 @@ export class AzHttpClient {
 
   private token: string;
   private managementUrl: string;
-  private apiVersion: string = '2019-09-01';
-  private batchApiVersion: string = '2019-09-01';
+  private apiVersion: string = '2020-09-01';
+  private batchApiVersion: string = '2020-09-01';
   private roleApiVersion: string = '2019-04-01-preview';
   private batchCallUrl: string;
 }
