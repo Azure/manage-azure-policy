@@ -79,7 +79,7 @@ describe('Testing all functions in policyHelper file', () => {
 		const policyAssignJson = JSON.stringify({
 			"name": "assignName",
 			"type": "Microsoft.Authorization/policyAssignments",
-			"apiVersion": "2020-03-01",
+			"apiVersion": "2020-09-01",
 			"scope": "subscription",
 			"properties": {
 				"displayName": "something",
