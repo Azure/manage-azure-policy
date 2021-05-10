@@ -72,6 +72,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
   try {
     // Get all policy definition, assignment objects
     const allPolicyDetails: PolicyDetails[] = await getAllPolicyDetails();
+    let errorWhileFetching: Boolean = false;
 
     for (const policyDetails of allPolicyDetails) {
       const gitPolicy = policyDetails.policyInCode;
@@ -80,6 +81,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
 
       if (azurePolicy.error && azurePolicy.error.code != POLICY_DEFINITION_NOT_FOUND && azurePolicy.error.code != POLICY_ASSIGNMENT_NOT_FOUND && azurePolicy.error.code != POLICY_INITIATIVE_NOT_FOUND ) {
         // There was some error while fetching the policy.
+        errorWhileFetching = true;
         core.error(`Failed to get policy with id ${gitPolicy.id}, path ${policyDetails.path}. Error : ${JSON.stringify(azurePolicy.error)}`);
       }
       else {
@@ -91,7 +93,7 @@ export async function getAllPolicyRequests(): Promise<PolicyRequest[]> {
     }
 
     // There were errors while getting policies. We will not proceed further.
-    if (allPolicyDetails.length != policyRequests.length) {
+    if (errorWhileFetching) {
       return Promise.reject(`Error occurred while fetching policies from Azure.`);
     }
   }
