@@ -271,6 +271,6 @@ export class AzHttpClient {
   private managementUrl: string;
   private apiVersion: string = '2020-09-01';
   private batchApiVersion: string = '2020-09-01';
-  private roleApiVersion: string = '2020-09-01';
+  private roleApiVersion: string = '2019-04-01-preview';
   private batchCallUrl: string;
 }
