@@ -17,5 +17,5 @@ inputs:
     required: false
     description: 'Optional. To override the property enforcementMode in assignments. Input is similar to assignments input. Add ~ at the beginning if you do not want to enforce the assignment(s)'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'lib/run.js'
