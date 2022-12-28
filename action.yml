@@ -14,5 +14,5 @@ inputs:
     required: false
     description: 'Optional. There are 2 modes for this action - _incremental_ and _complete_. If not specified, the action will use incremental mode by default. In incremental mode, the action will compare already exisiting policy in azure with the contents of policy provided in repository file. It will apply the policy only if there is a mismatch. On the contrary, the complete mode will apply all the files present in the specified paths irrespective of whether or not repository policy file has been updated.'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'lib/run.js'
