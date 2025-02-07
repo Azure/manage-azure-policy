@@ -1,3 +1,6 @@
+# Deprecation notice
+
+This Action is deprecated. Instead, one can use [azure/cli@v1 action](https://github.com/Azure/cli) and pass a custom script to it to access [azure policy](https://learn.microsoft.com/en-in/azure/developer/github/manage-azure-policy).
 
 # Manage Azure Policy Action
 
